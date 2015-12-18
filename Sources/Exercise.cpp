@@ -3,313 +3,277 @@
 #include <Kore/Application.h>
 #include <Kore/IO/FileReader.h>
 #include <Kore/Math/Core.h>
-#include <Kore/Math/Random.h>
 #include <Kore/System.h>
 #include <Kore/Input/Keyboard.h>
 #include <Kore/Input/Mouse.h>
 #include <Kore/Audio/Mixer.h>
 #include <Kore/Graphics/Image.h>
 #include <Kore/Graphics/Graphics.h>
+#include <Kore/Math/Random.h>
 #include <Kore/Log.h>
-#include "ObjLoader.h"
 
-#include "Collision.h"
-#include "PhysicsWorld.h"
-#include "PhysicsObject.h"
-
-using namespace Kore;
-
-// A simple particle implementation
-class Particle {
-public:
-	VertexBuffer* vb;
-	IndexBuffer* ib;
-
-	mat4 M;
-	
-	// The current position
-	vec3 position;
-	
-	// The current velocity
-	vec3 velocity;
-
-	// The remaining time to live
-	float timeToLive;
-
-	// The total time time to live
-	float totalTimeToLive;
-
-	// Is the particle dead (= ready to be re-spawned?)
-	bool dead;
-
-
-	void init(const VertexStructure& structure) {
-		vb = new VertexBuffer(4, structure,0);
-		float* vertices = vb->lock();
-		SetVertex(vertices, 0, -1, -1, 0, 0, 0);
-		SetVertex(vertices, 1, -1, 1, 0, 0, 1);
-		SetVertex(vertices, 2, 1, 1, 0, 1, 1); 
-		SetVertex(vertices, 3, 1, -1, 0, 1, 0); 
-		vb->unlock();
-
-		// Set index buffer
-		ib = new IndexBuffer(6);
-		int* indices = ib->lock();
-		indices[0] = 0;
-		indices[1] = 1;
-		indices[2] = 2;
-		indices[3] = 0;
-		indices[4] = 2;
-		indices[5] = 3;
-		ib->unlock();
-
-		dead = true;
-	}
-
-
-	void Emit(vec3 pos, vec3 velocity, float timeToLive) {
-		position = pos;
-		this->velocity = velocity;
-		dead = false;
-		this->timeToLive = timeToLive;
-		totalTimeToLive = timeToLive;
-	}
-
-	Particle() {
-	}
-
-
-	void SetVertex(float* vertices, int index, float x, float y, float z, float u, float v) {
-		vertices[index* 8 + 0] = x;
-		vertices[index*8 + 1] = y;
-		vertices[index*8 + 2] = z;
-		vertices[index*8 + 3] = u;
-		vertices[index*8 + 4] = v;
-		vertices[index*8 + 5] = 0.0f;
-		vertices[index*8 + 6] = 0.0f;
-		vertices[index*8 + 7] = -1.0f;
-	}
-
-	void render(TextureUnit tex, Texture* image) {
-		Graphics::setTexture(tex, image);
-		Graphics::setVertexBuffer(*vb);
-		Graphics::setIndexBuffer(*ib);
-		Graphics::drawIndexedVertices();
-	}
-
-	void Integrate(float deltaTime) {
-		timeToLive -= deltaTime;
-
-		if (timeToLive < 0.0f) {
-			dead = true;
-		}
-		
-		// Note: We are using no forces or gravity at the moment.
-
-		position += velocity * deltaTime;
-
-		// Build the matrix
-		M = mat4::Translation(position.x(), position.y(), position.z()) * mat4::Scale(0.2f, 0.2f, 0.2f);
-	}
-
-
-};
-
-
-class ParticleSystem {
-public:
-
-	// The center of the particle system
-	vec3 position;
-
-	// The minimum coordinates of the emitter box
-	vec3 emitMin;
-
-	// The maximal coordinates of the emitter box
-	vec3 emitMax;
-	
-	// The list of particles
-	Particle* particles;
-
-	// The number of particles
-	int numParticles;
-
-	// The spawn rate
-	float spawnRate;
-	
-	// When should the next particle be spawned?
-	float nextSpawn;
-
-	ParticleSystem(int maxParticles, const VertexStructure& structure ) {
-		particles = new Particle[maxParticles];
-		numParticles = maxParticles;
-		for (int i = 0; i < maxParticles; i++) {
-			particles[i].init(structure);
-		}
-		spawnRate = 0.05f;
-		nextSpawn = spawnRate;
-
-		position = vec3(0.5f, 1.3f, 0.5f);
-		float b = 0.1f;
-		emitMin = position + vec3(-b, -b, -b);
-		emitMax = position + vec3(b, b, b);
-	}
-
-	
-	void update(float deltaTime) {
-		// Do we need to spawn a particle?
-		nextSpawn -= deltaTime;
-		bool spawnParticle = false;
-		if (nextSpawn < 0) {
-			spawnParticle = true;
-			nextSpawn = spawnRate;
-		}
-		
-		
-		for (int i = 0; i < numParticles; i++) {
-			
-			if (particles[i].dead) {
-				if (spawnParticle) {
-					EmitParticle(i);
-					spawnParticle = false;
-				}
-			}
-
-			particles[i].Integrate(deltaTime);
-		}
-	}
-
-	void render(TextureUnit tex, Texture* image, ConstantLocation mLocation, mat4 V) {
-		Graphics::setBlendingMode(BlendingOperation::SourceAlpha, BlendingOperation::InverseSourceAlpha);
-		Graphics::setRenderState(RenderState::DepthWrite, false);
-		
-		/************************************************************************/
-		/* Exercise 7 1.1                                                       */
-		/************************************************************************/
-		/* Change the matrix V in such a way that the billboards are oriented towards the camera */
-
-
-		/************************************************************************/
-		/* Exercise 7 1.2                                                       */
-		/************************************************************************/
-		/* Animate using at least one new control parameter */		
-
-		for (int i = 0; i < numParticles; i++) {
-			// Skip dead particles
-			if (particles[i].dead) continue;
-
-			Graphics::setMatrix(mLocation, particles[i].M * V);
-			particles[i].render(tex, image);
-		}
-		Graphics::setRenderState(RenderState::DepthWrite, true);
-	}
-
-	float getRandom(float minValue, float maxValue) {
-		int randMax = 1000000;
-		int randInt = Random::get(0, randMax);
-		float r =  (float) randInt / (float) randMax;
-		return minValue + r * (maxValue - minValue);
-	}
-
-	void EmitParticle(int index) {
-		// Calculate a random position inside the box
-		float x = getRandom(emitMin.x(), emitMax.x());
-		float y = getRandom(emitMin.y(), emitMax.y());
-		float z = getRandom(emitMin.z(), emitMax.z());
-
-		vec3 pos;
-		pos.set(x, y, z);
-
-		vec3 velocity(0, 0.3f, 0);
-
-		particles[index].Emit(pos, velocity, 3.0f);
-	}
-
-
-};
+#include "MeshObject.h"
+#include "Steering.h"
+#include "Flocking.h"
+#include "StateMachine.h"
 
 
 
 
+// The world is viewed using an orthographic projection and represents toroidal space: Objects that leave on one side come out on the other side.
+#define WORLD_SIZE 3.0f
 
+#define TRIM_WORLD(var) \
+if (var < -WORLD_SIZE) var = WORLD_SIZE; \
+if (var > WORLD_SIZE) var = -WORLD_SIZE;
 
 
 
 
 
 namespace {
-	const int width = 1024;
-	const int height = 768;
+	using namespace Kore;
+
+	// Window size should be square otherwise we would need WORLD_SIZE_X and WORLD_SIZE_Z
+	const int width = 512;
+	const int height = 512;
+	
+	// The number of boids in the simulation. If using more, make objects[] larger
+	const int numBoids = 20;
+
+	// AI Characters for the moon and the Earth
+	AICharacter* moon;
+	AICharacter* earth;
+	
+	// Management for the whole flock
+	Flock flock;
+
+	// Array holding the boids
+	AICharacter* boids[20];
+
+	// Flock steering component, blends the three involved delegated steering behaviours
+	BlendedSteering* flockSteering;
+
+	// The three steering components that flockSteering blends together
+	Separation *separation;
+	Cohesion *cohesion;
+	VelocityMatchAndAlign *vMA;
+
+	// Vector to hold steering information from the keyboard
+	vec2 deltaPosition;
+
+	// The two behaviours for the moon AI - wander and seek
+	Wander* wander;
+	Seek* seek;
+
+	// The current steering behaviour for the moon
+	SteeringBehaviour* moonBehaviour;
+
+	// State machine for the moon's behaviour	
+	StateMachine moonStateMachine;
+
+
+	
+
 	double startTime;
 	Shader* vertexShader;
 	Shader* fragmentShader;
 	Program* program;
 
-	float angle = 0.0f;
+	double lastTime;
 
 	// null terminated array of MeshObject pointers
-	MeshObject* objects[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-
-	// null terminated array of PhysicsObject pointers
-	PhysicsObject* physicsObjects[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
-
+	MeshObject* objects[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
 
 	// The view projection matrix aka the camera
 	mat4 P;
 	mat4 View;
-	mat4 PV;
-
-	vec3 cameraPosition;
-
-	MeshObject* sphere;
-	PhysicsObject* po;
-
-	PhysicsWorld physics;
-	
 
 	// uniform locations - add more as you see fit
 	TextureUnit tex;
-	ConstantLocation pvLocation;
+	ConstantLocation pLocation;
+	ConstantLocation vLocation;
 	ConstantLocation mLocation;
-	ConstantLocation tintLocation;
 
-	Texture* particleImage;
-	ParticleSystem* particleSystem;
+	
 
-	double lastTime;
+	
+	// State for managing actions in the state machine
+	enum State { Wandering, Following };
+
+
+	// An action that can change the behaviour of the moon AI
+	class MoonAction : public Action {
+	public:
+		State state;
+
+		virtual void act() {
+			if (state == Following) {
+				moonBehaviour = seek;
+				Kore::log(Kore::Info, "Moon is now seeking");
+			}
+			else {
+				moonBehaviour = wander;
+				Kore::log(Kore::Info, "Moon is now wandering");
+			}
+		}
+	};
+
+	// A state in the moon's state machine. Returns the appropriate MoonAction to switch the state as the entry action
+	class MoonState : public StateMachineState
+	{
+	public:
+
+		State state;
+
+		virtual Action* getEntryActions() {
+			MoonAction* changeStatusAction = new MoonAction();
+			changeStatusAction->state = state;
+			changeStatusAction->next = nullptr;
+			return changeStatusAction;
+		}
+
+		virtual Action* getExitActions() {
+			return new Action();
+		}
+	};
+
+
+	// A transition for the Moon's state machine.
+	// Is realized as a fixed target transition with a condition
+	class MoonTransition :
+		public Transition,
+		public ConditionalTransitionMixin,
+		public FixedTargetTransitionMixin
+	{
+	public:
+
+		virtual Action* getActions() {
+			return new Action();
+		}
+
+		virtual bool isTriggered() {
+			bool result = ConditionalTransitionMixin::isTriggered();
+			return result;
+		}
+
+		StateMachineState* getTargetState()
+		{
+			return FixedTargetTransitionMixin::getTargetState();
+		}
+	};
+
+	/************************************************************************/
+	// Task 1.3: Complete this class so that it correctly returns 
+	// Checks if the moon is closer or further away from the specified distance
+	/************************************************************************/
+	class MoonCondition : public Condition {
+	public:
+		
+		/**
+		* Performs the test for this condition.
+		*/
+		virtual bool test() {
+			
+			return false;
+		}
+	};
+
+	// Update the AI
+	void updateAI(float deltaT) {
+		// Update the state machine
+		// Get the actions that should be executed
+		Action* actions = moonStateMachine.update();
+
+		// Execute any actions that should be executed
+		while (actions != nullptr) {
+			actions->act();
+			actions = actions->next;
+		} 
+
+
+		// Update the steering behaviours
+		float duration = deltaT;
+		
+		// One steering output is re-used
+		SteeringOutput steer;
+
+		// Handle the moon
+		moonBehaviour->getSteering(&steer);
+		moon->integrate(steer, 0.95f, duration);
+		moon->trimMaxSpeed(1.0f);
+
+		// Keep in bounds of the world
+		TRIM_WORLD(moon->Position[0]);
+		TRIM_WORLD(moon->Position[1]);
+
+		moon->meshObject->M = mat4::Translation(moon->Position[0], 0.0f, moon->Position[1]);
+
+		// Handle the earth - treat player input as a steering output
+		steer.clear();
+		steer.linear = deltaPosition;
+		steer.linear *= 10.0f;
+		earth->integrate(steer, 0.95f, duration);
+		
+		earth->trimMaxSpeed(3.0f);
+		
+		// Keep in bounds of the world
+		TRIM_WORLD(earth->Position[0]);
+		TRIM_WORLD(earth->Position[1]);
+
+		earth->meshObject->M = mat4::Translation(earth->Position[0], 0.0f, earth->Position[1]) * mat4::Scale(2.0f, 2.0f, 2.0f);
+
+		// Handle the boids
+
+		for (int i = 0; i < numBoids; i++) {
+			AICharacter* boid = boids[i];
+
+			// Get the steering output
+			flockSteering->character = boid;
+			flockSteering->getSteering(&steer);
+
+			// Update the kinematic
+			boid->integrate(steer, 0.7f, duration);
+
+			// Face the direction we are moving
+			boid->setOrientationFromVelocity();
+
+			// Check for maximum speed
+			boid->trimMaxSpeed(4.0f);
+
+			// Keep in bounds of the world
+			TRIM_WORLD(boid->Position[0]);
+			TRIM_WORLD(boid->Position[1]);
+
+			boid->meshObject->M = mat4::Translation(boid->Position[0], 0.0f, boid->Position[1]) * mat4::RotationY(boid->Orientation + Kore::pi);
+		}
+	}
+
+
+
+
 
 	void update() {
 		double t = System::time() - startTime;
 		double deltaT = t - lastTime;
-		//Kore::log(Info, "%f\n", deltaT);
 		lastTime = t;
+
+		// Update the AI
+		updateAI((float)deltaT);
+
 		Kore::Audio::update();
-		
+
 		Graphics::begin();
 		Graphics::clear(Graphics::ClearColorFlag | Graphics::ClearDepthFlag, 0xff9999FF, 1000.0f);
 
-		Graphics::setFloat4(tintLocation, vec4(1, 1, 1, 1));
-
 		program->set();
-		
 
-		angle += 0.3f * deltaT;
-
-		float x = 0 + 3 * Kore::cos(angle);
-		float z = 0 + 3 * Kore::sin(angle);
-		
-		cameraPosition.set(x, 2, z);
-
-		//PV = mat4::Perspective(60, (float)width / (float)height, 0.1f, 100) * mat4::lookAt(vec3(0, 2, -3), vec3(0, 2, 0), vec3(0, 1, 0));
-		P = mat4::Perspective(60, (float)width / (float)height, 0.1f, 100);
-		View = mat4::lookAt(vec3(x, 2, z), vec3(0, 2, 0), vec3(0, 1, 0));
-		PV = P * View;
-
-
-		Graphics::setMatrix(pvLocation, PV);
-
-
-
+		// set the camera - orthogonal projection
+		float val = WORLD_SIZE;
+		P = mat4::orthogonalProjection(-val, val, -val, val, -val, val);
+		View = mat4::RotationX(Kore::pi / 2.0f * 3.0f);
+		Graphics::setMatrix(pLocation, P);
+		Graphics::setMatrix(vLocation, View);
 
 
 		// iterate the MeshObjects
@@ -320,85 +284,174 @@ namespace {
 
 			(*current)->render(tex);
 			++current;
-		} 
-
-		
-
-		// Update the physics
-		physics.Update(deltaT);
-
-		PhysicsObject** currentP = &physics.physicsObjects[0];
-		while (*currentP != nullptr) {
-			(*currentP)->UpdateMatrix();
-			Graphics::setMatrix(mLocation, (*currentP)->Mesh->M);
-			(*currentP)->Mesh->render(tex);
-			++currentP;
 		}
-		
-
-
-		particleSystem->update(deltaT);
-		particleSystem->render(tex, particleImage, mLocation, View);
-
-
 
 		Graphics::end();
 		Graphics::swapBuffers();
 	}
 
-	void SpawnSphere(vec3 Position, vec3 Velocity) {
-		PhysicsObject* po = new PhysicsObject();
-		po->SetPosition(Position);
-		po->Velocity = Velocity;
-		po->Collider.radius = 0.2f;
 
-		po->Mass = 5;
-		po->Mesh = sphere;
-			
-		// The impulse should carry the object forward
-		// Use the inverse of the view matrix
 
-		po->ApplyImpulse(Velocity);
-		physics.AddObject(po);
-	}
 
-	void keyDown(KeyCode code, wchar_t character) {
-		if (code == Key_Space) {
-			
-			// The impulse should carry the object forward
-			// Use the inverse of the view matrix
-
-			vec4 impulse(0, 0.4, 2, 0);
-			mat4 viewI = View;
-			viewI.Invert();
-			impulse = viewI * impulse;
-			
-			vec3 impulse3(impulse.x(), impulse.y(), impulse.z());
-
-			
-			SpawnSphere(cameraPosition + impulse3 *0.2f, impulse3);
-		}
-	}
-
-	void keyUp(KeyCode code, wchar_t character) {
-		if (code == Key_Left) {
-			// ...
-		}
-	}
 
 	void mouseMove(int x, int y, int movementX, int movementY) {
 
 	}
-	
+
 	void mousePress(int button, int x, int y) {
 
 	}
 
-	
-
 	void mouseRelease(int button, int x, int y) {
-		
+
 	}
+
+	void keyDown(KeyCode code, wchar_t character) {
+
+		float movementDelta = 0.1f;
+
+		if (code == Key_Left) {
+			deltaPosition[0] = -movementDelta;
+		}
+		else if (code == Key_Right) {
+			deltaPosition[0] = movementDelta;
+		}
+		else if (code == Key_Up) {
+			deltaPosition[1] = movementDelta;
+		}
+		else if (code == Key_Down) {
+			deltaPosition[1] = -movementDelta;
+		}
+	}
+
+	void keyUp(KeyCode code, wchar_t character) {
+
+
+		if (code == Key_Left) {
+			deltaPosition[0] = 0.0f;
+		}
+		else if (code == Key_Right) {
+			deltaPosition[0] = 0.0f;
+		}
+		else if (code == Key_Up) {
+			deltaPosition[1] = 0.0f;
+		}
+		else if (code == Key_Down) {
+			deltaPosition[1] = 0.0f;
+		}
+	}
+
+
+	void initAI() {
+		// Set up Earth and moon AI characters
+
+		moon = new AICharacter();
+		moon->Position = vec2(1.0f, 1.0f);
+		moon->meshObject = objects[2];
+
+		earth = new AICharacter();
+		earth->meshObject = objects[0];
+
+		// Set up the moon's behaviours
+		wander = new Wander();
+		wander->character = moon;
+		wander->maxAcceleration = 2.0f;
+		wander->turnSpeed = 2.0f;
+		wander->volatility = 20.0f;
+
+		seek = new Seek();
+		seek->character = moon;
+		seek->maxAcceleration = 3.0f;
+		seek->target = &(earth->Position);
+
+		moonBehaviour = wander;
+
+		// Set up the moon's state machine
+		MoonState* wanderState = new MoonState();
+		MoonState* followState = new MoonState();
+		wanderState->state = Wandering;
+		followState->state = Following;
+
+		MoonTransition* WanderingToFollowing = new MoonTransition();
+		WanderingToFollowing->target = followState;
+		WanderingToFollowing->next = nullptr;
+
+		MoonTransition* FollowingToWandering = new MoonTransition();
+		FollowingToWandering->target = wanderState;
+		FollowingToWandering->next = nullptr;
+
+		/************************************************************************/
+		// Task 1.3: After you have completed the MoonCondition object, instantiate it here
+		/************************************************************************/
+		
+
+		MoonCondition* ShouldFollow = new MoonCondition();
+		// This condition should trigger if the moon is closer than 1 unit to the Earth
+
+		MoonCondition* ShouldWander = new MoonCondition();
+		// This condition should trigger if the moon is further away than 1 unit from the Earth
+		
+
+		
+
+		WanderingToFollowing->condition = ShouldFollow;
+		FollowingToWandering->condition = ShouldWander;
+
+		wanderState->firstTransition = WanderingToFollowing;
+		followState->firstTransition = FollowingToWandering;
+
+		moonStateMachine.initialState = wanderState;
+		moonStateMachine.currentState = wanderState;
+
+
+		// Set up the boids
+		for (int i = 0; i < numBoids; i++) {
+			boids[i] = new AICharacter();
+			AICharacter* current = boids[i];
+			current->meshObject = objects[3 + i];
+			current->Position[0] = Wander::randomBinomial(WORLD_SIZE);
+			current->Position[1] = Wander::randomBinomial(WORLD_SIZE);
+			current->Orientation = Wander::randomReal(Kore::pi);
+			current->Velocity[0] = Wander::randomBinomial(2.0f);
+			current->Velocity[1] = Wander::randomReal(2.0f);
+			current->Rotation = 0.0f;
+			flock.boids.push_back(current);
+		}
+
+
+		float accel = 2.0f;
+		// Set up the steering behaviours (we use one for all)
+		separation = new Separation;
+		separation->maxAcceleration = accel;
+		separation->neighbourhoodSize = 1.0f;
+		separation->neighbourhoodMinDP = -1.0f;
+		separation->theFlock = &flock;
+
+		cohesion = new Cohesion;
+		cohesion->maxAcceleration = accel;
+		cohesion->neighbourhoodSize = 1.0f;
+		cohesion->neighbourhoodMinDP = 0.0f;
+		cohesion->theFlock = &flock;
+
+		vMA = new VelocityMatchAndAlign;
+		vMA->maxAcceleration = accel;
+		vMA->neighbourhoodSize = 2.0f;
+		vMA->neighbourhoodMinDP = 0.0f;
+		vMA->theFlock = &flock;
+
+
+		flockSteering = new BlendedSteering();
+		flockSteering->behaviours.push_back(BlendedSteering::BehaviourAndWeight(
+			separation, 0.1f
+			));
+		flockSteering->behaviours.push_back(BlendedSteering::BehaviourAndWeight(
+			cohesion, 1.0f
+			));
+		flockSteering->behaviours.push_back(BlendedSteering::BehaviourAndWeight(
+			vMA, 2.0f
+			));
+	}
+
 
 	void init() {
 		FileReader vs("shader.vert");
@@ -418,55 +471,62 @@ namespace {
 		program->link(structure);
 
 		tex = program->getTextureUnit("tex");
-		pvLocation = program->getConstantLocation("PV");
+		pLocation = program->getConstantLocation("P");
+		vLocation = program->getConstantLocation("V");
 		mLocation = program->getConstantLocation("M");
-		tintLocation = program->getConstantLocation("tint");
 
-		objects[0] = new MeshObject("Base.obj", "Level/basicTiles6x6.png", structure);
-		objects[0]->M = mat4::Translation(0.0f, 1.0f, 0.0f);
-
-		sphere = new MeshObject("ball_at_origin.obj", "Level/unshaded.png", structure);
-
-		SpawnSphere(vec3(0, 2, 0), vec3(0, 0, 0));
+		// Object 0 is the Earth
+		objects[0] = new MeshObject("Level/ball.obj", "Level/unshaded.png", structure);
 		
-		
+		// Object 1 is the background
+		objects[1] = new MeshObject("Level/plane.obj", "Level/StarMap.png", structure);
+		objects[1]->M = mat4::Translation(0.0f, 0.5f, 0.0f);
+
+		// Object 2 is the Moon
+		objects[2] = new MeshObject("Level/ball.obj", "Level/moonmap1k.jpg", structure);
+
+		// Objects 3++ are the boids
+		for (int i = 0; i < numBoids; i++) {
+			objects[3 + i] = new MeshObject("Level/boid.obj", "Level/basicTiles3x3red.png", structure);
+		}
+
+		// Initialize the AI
+		initAI();
 
 		Graphics::setRenderState(DepthTest, true);
 		Graphics::setRenderState(DepthTestCompare, ZCompareLess);
 
-		Graphics::setTextureAddressing(tex, U, Repeat);
-		Graphics::setTextureAddressing(tex, V, Repeat);
-
-		particleImage = new Texture("SuperParticle.png", true);
-		particleSystem = new ParticleSystem(100, structure);
-
-		
+		Graphics::setTextureAddressing(tex, Kore::U, Repeat);
+		Graphics::setTextureAddressing(tex, Kore::V, Repeat);
 
 	}
+
 }
 
-int kore(int argc, char** argv) {
-	Application* app = new Application(argc, argv, width, height, 0, false, "Exercise7");
-	
-	init();
+	int kore(int argc, char** argv) {
+		Application* app = new Application(argc, argv, width, height, 0, false, "Exercise14");
 
-	app->setCallback(update);
+		init();
 
-	startTime = System::time();
-	lastTime = 0.0f;
-	Kore::Mixer::init();
-	Kore::Audio::init();
-	
-	
-	Keyboard::the()->KeyDown = keyDown;
-	Keyboard::the()->KeyUp = keyUp;
-	Mouse::the()->Move = mouseMove;
-	Mouse::the()->Press = mousePress;
-	Mouse::the()->Release = mouseRelease;
+		app->setCallback(update);
 
-	app->start();
+		startTime = System::time();
+		lastTime = 0.0f;
 
-	delete app;
-	
-	return 0;
-}
+		Kore::Mixer::init();
+		Kore::Audio::init();
+		//Kore::Mixer::play(new SoundStream("back.ogg", true));
+
+		Keyboard::the()->KeyDown = keyDown;
+		Keyboard::the()->KeyUp = keyUp;
+		Mouse::the()->Move = mouseMove;
+		Mouse::the()->Press = mousePress;
+		Mouse::the()->Release = mouseRelease;
+
+		app->start();
+
+		delete app;
+
+		return 0;
+	}
+

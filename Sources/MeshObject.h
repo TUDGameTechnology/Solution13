@@ -1,67 +1,65 @@
 #pragma once
 
-#include "pch.h"
+#include <Kore/pch.h>
 
-// TODO: Way too many includes
 
-#include <Kore/Application.h>
-#include <Kore/IO/FileReader.h>
-#include <Kore/Math/Core.h>
-#include <Kore/Math/Random.h>
-#include <Kore/System.h>
-#include <Kore/Input/Keyboard.h>
-#include <Kore/Input/Mouse.h>
-#include <Kore/Audio/Mixer.h>
-#include <Kore/Graphics/Image.h>
 #include <Kore/Graphics/Graphics.h>
-#include <Kore/Log.h>
+
 #include "ObjLoader.h"
 
 
+namespace {
+	class MeshObject {
+	public:
+		MeshObject(const char* meshFile, const char* textureFile, const Kore::VertexStructure& structure, float scale = 1.0f) {
+			mesh = loadObj(meshFile);
+			image = new Kore::Texture(textureFile, true);
 
-using namespace Kore;
+			vertexBuffer = new Kore::VertexBuffer(mesh->numVertices, structure, 0);
+			float* vertices = vertexBuffer->lock();
+			for (int i = 0; i < mesh->numVertices; ++i) {
+				vertices[i * 8 + 0] = mesh->vertices[i * 8 + 0] * scale;
+				vertices[i * 8 + 1] = mesh->vertices[i * 8 + 1] * scale;
+				vertices[i * 8 + 2] = mesh->vertices[i * 8 + 2] * scale;
+				vertices[i * 8 + 3] = mesh->vertices[i * 8 + 3];
+				vertices[i * 8 + 4] = 1.0f - mesh->vertices[i * 8 + 4];
+				vertices[i * 8 + 5] = mesh->vertices[i * 8 + 5];
+				vertices[i * 8 + 6] = mesh->vertices[i * 8 + 6];
+				vertices[i * 8 + 7] = mesh->vertices[i * 8 + 7];
+			}
+			vertexBuffer->unlock();
 
-class MeshObject {
-public:
-	MeshObject(const char* meshFile, const char* textureFile, const VertexStructure& structure, float scale = 1.0f) {
-		mesh = loadObj(meshFile);
-		image = new Texture(textureFile, true);
+			indexBuffer = new Kore::IndexBuffer(mesh->numFaces * 3);
+			int* indices = indexBuffer->lock();
+			for (int i = 0; i < mesh->numFaces * 3; i++) {
+				indices[i] = mesh->indices[i];
+			}
+			indexBuffer->unlock();
 
-		vertexBuffer = new VertexBuffer(mesh->numVertices, structure,0);
-		float* vertices = vertexBuffer->lock();
-		for (int i = 0; i < mesh->numVertices; ++i) {
-			vertices[i * 8 + 0] = mesh->vertices[i * 8 + 0] * scale;
-			vertices[i * 8 + 1] = mesh->vertices[i * 8 + 1] * scale;
-			vertices[i * 8 + 2] = mesh->vertices[i * 8 + 2] * scale;
-			vertices[i * 8 + 3] = mesh->vertices[i * 8 + 3];
-			vertices[i * 8 + 4] = 1.0f - mesh->vertices[i * 8 + 4];
-			vertices[i * 8 + 5] = mesh->vertices[i * 8 + 5];
-			vertices[i * 8 + 6] = mesh->vertices[i * 8 + 6];
-			vertices[i * 8 + 7] = mesh->vertices[i * 8 + 7];
+			M = Kore::mat4::Identity();
 		}
-		vertexBuffer->unlock();
 
-		indexBuffer = new IndexBuffer(mesh->numFaces * 3);
-		int* indices = indexBuffer->lock();
-		for (int i = 0; i < mesh->numFaces * 3; i++) {
-			indices[i] = mesh->indices[i];
+		void render(Kore::TextureUnit tex) {
+			Kore::Graphics::setTexture(tex, image);
+			Kore::Graphics::setVertexBuffer(*vertexBuffer);
+			Kore::Graphics::setIndexBuffer(*indexBuffer);
+			Kore::Graphics::drawIndexedVertices();
 		}
-		indexBuffer->unlock();
 
-		M = mat4::Identity();
-	}
+		void setTexture(Kore::Texture* tex) {
+			image = tex;
+		}
 
-	void render(TextureUnit tex) {
-		Graphics::setTexture(tex, image);
-		Graphics::setVertexBuffer(*vertexBuffer);
-		Graphics::setIndexBuffer(*indexBuffer);
-		Graphics::drawIndexedVertices();
-	}
+		Kore::Texture* getTexture() {
+			return image;
+		}
 
-	mat4 M;
-private:
-	VertexBuffer* vertexBuffer;
-	IndexBuffer* indexBuffer;
-	Mesh* mesh;
-	Texture* image;
-};
+		Kore::mat4 M;
+	private:
+		Kore::VertexBuffer* vertexBuffer;
+		Kore::IndexBuffer* indexBuffer;
+		Mesh* mesh;
+		Kore::Texture* image;
+	};
+
+}

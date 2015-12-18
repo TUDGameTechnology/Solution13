@@ -2,7 +2,6 @@
 precision mediump float;
 #endif
 
-
 uniform sampler2D tex;
 varying vec2 texCoord;
 varying vec3 normal;
