@@ -133,9 +133,18 @@ namespace {
 			return changeStatusAction;
 		}
 
-		virtual Action* getExitActions() {
-			return new Action();
+		virtual Action* getActions() {
+			MoonAction* result = new MoonAction();
+			result->next = nullptr;
+			return result;
 		}
+
+		virtual Action* getExitActions() {
+			MoonAction* result = new MoonAction();
+			result->next = nullptr;
+			return result;
+		}
+
 	};
 
 
@@ -149,7 +158,9 @@ namespace {
 	public:
 
 		virtual Action* getActions() {
-			return new Action();
+			Action* result = new Action();
+			result->next = nullptr;
+			return result;
 		}
 
 		virtual bool isTriggered() {
@@ -161,6 +172,7 @@ namespace {
 		{
 			return FixedTargetTransitionMixin::getTargetState();
 		}
+
 	};
 
 	/************************************************************************/
