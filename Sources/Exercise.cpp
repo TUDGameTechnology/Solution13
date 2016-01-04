@@ -37,14 +37,14 @@ namespace {
 	// Window size should be square otherwise we would need WORLD_SIZE_X and WORLD_SIZE_Z
 	const int width = 512;
 	const int height = 512;
-	
+
 	// The number of boids in the simulation. If using more, make objects[] larger
 	const int numBoids = 20;
 
 	// AI Characters for the moon and the Earth
 	AICharacter* moon;
 	AICharacter* earth;
-	
+
 	// Management for the whole flock
 	Flock flock;
 
@@ -69,11 +69,11 @@ namespace {
 	// The current steering behaviour for the moon
 	SteeringBehaviour* moonBehaviour;
 
-	// State machine for the moon's behaviour	
+	// State machine for the moon's behaviour
 	StateMachine moonStateMachine;
 
 
-	
+
 
 	double startTime;
 	Shader* vertexShader;
@@ -95,9 +95,9 @@ namespace {
 	ConstantLocation vLocation;
 	ConstantLocation mLocation;
 
-	
 
-	
+
+
 	// State for managing actions in the state machine
 	enum State { Wandering, Following };
 
@@ -176,17 +176,17 @@ namespace {
 	};
 
 	/************************************************************************/
-	// Task 1.3: Complete this class so that it correctly returns 
+	// Task 1.3: Complete this class so that it correctly returns
 	// Checks if the moon is closer or further away from the specified distance
 	/************************************************************************/
 	class MoonCondition : public Condition {
 	public:
-		
+
 		/**
 		* Performs the test for this condition.
 		*/
 		virtual bool test() {
-			
+
 			return false;
 		}
 	};
@@ -201,12 +201,12 @@ namespace {
 		while (actions != nullptr) {
 			actions->act();
 			actions = actions->next;
-		} 
+		}
 
 
 		// Update the steering behaviours
 		float duration = deltaT;
-		
+
 		// One steering output is re-used
 		SteeringOutput steer;
 
@@ -226,9 +226,9 @@ namespace {
 		steer.linear = deltaPosition;
 		steer.linear *= 10.0f;
 		earth->integrate(steer, 0.95f, duration);
-		
+
 		earth->trimMaxSpeed(3.0f);
-		
+
 		// Keep in bounds of the world
 		TRIM_WORLD(earth->Position[0]);
 		TRIM_WORLD(earth->Position[1]);
@@ -356,6 +356,7 @@ namespace {
 
 	void initAI() {
 		// Set up Earth and moon AI characters
+		Kore::Random::init(42);
 
 		moon = new AICharacter();
 		moon->Position = vec2(1.0f, 1.0f);
@@ -395,16 +396,16 @@ namespace {
 		/************************************************************************/
 		// Task 1.3: After you have completed the MoonCondition object, instantiate it here
 		/************************************************************************/
-		
+
 
 		MoonCondition* ShouldFollow = new MoonCondition();
 		// This condition should trigger if the moon is closer than 1 unit to the Earth
 
 		MoonCondition* ShouldWander = new MoonCondition();
 		// This condition should trigger if the moon is further away than 1 unit from the Earth
-		
 
-		
+
+
 
 		WanderingToFollowing->condition = ShouldFollow;
 		FollowingToWandering->condition = ShouldWander;
@@ -489,7 +490,7 @@ namespace {
 
 		// Object 0 is the Earth
 		objects[0] = new MeshObject("Level/ball.obj", "Level/unshaded.png", structure);
-		
+
 		// Object 1 is the background
 		objects[1] = new MeshObject("Level/plane.obj", "Level/StarMap.png", structure);
 		objects[1]->M = mat4::Translation(0.0f, 0.5f, 0.0f);

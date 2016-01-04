@@ -10,6 +10,7 @@
 * software licence.
 */
 #include "Flocking.h"
+#include <cstring>
 
 using namespace Kore;
 
@@ -132,7 +133,7 @@ void Separation::getSteering(SteeringOutput* output)
 	flee.maxAcceleration = maxAcceleration;
 	flee.character = character;
 	flee.target = &cofm;
-	flee.getSteering(output); 
+	flee.getSteering(output);
 
 }
 

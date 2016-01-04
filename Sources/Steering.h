@@ -9,6 +9,7 @@
 
 
 #include <vector>
+#include <cstdlib>
 
 
 
@@ -158,7 +159,7 @@ public:
 		// Write the result to output->linear
 		// You can get the AI's position using character->Position
 		/************************************************************************/
-		
+
 	}
 };
 
@@ -180,7 +181,7 @@ public:
 		// Write the result to output->linear
 		// You can get the AI's position using character->Position
 		/************************************************************************/
-		
+
 	}
 };
 
@@ -238,7 +239,7 @@ public:
 
 	static float randomReal(float max)
 	{
-		return max * (float(Kore::Random::get() / RAND_MAX));
+		return max * (float(Kore::Random::get() / (float) RAND_MAX));
 	}
 
 	static float randomBinomial(float max)
