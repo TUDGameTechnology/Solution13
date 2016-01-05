@@ -134,13 +134,13 @@ namespace {
 		}
 
 		virtual Action* getActions() {
-			MoonAction* result = new MoonAction();
+			Action* result = new Action();
 			result->next = nullptr;
 			return result;
 		}
 
 		virtual Action* getExitActions() {
-			MoonAction* result = new MoonAction();
+			Action* result = new Action();
 			result->next = nullptr;
 			return result;
 		}
@@ -178,6 +178,8 @@ namespace {
 	/************************************************************************/
 	// Task 1.3: Complete this class so that it correctly returns
 	// Checks if the moon is closer or further away from the specified distance
+	// Should only return true once whenever the state should change (i.e. whenever
+	// the distance is less or more than the threshold, return true once).
 	/************************************************************************/
 	class MoonCondition : public Condition {
 	public:
