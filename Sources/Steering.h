@@ -239,7 +239,7 @@ public:
 
 	static float randomReal(float max)
 	{
-		return max * (float(Kore::Random::get() / (float) RAND_MAX));
+		return max * (float(Kore::Random::get(RAND_MAX) / (float) RAND_MAX));
 	}
 
 	static float randomBinomial(float max)
