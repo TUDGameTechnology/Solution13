@@ -159,7 +159,14 @@ public:
 		// Write the result to output->linear
 		// You can get the AI's position using character->Position
 		/************************************************************************/
-
+		// First work out the direction
+		output->linear = *target - character->Position;
+		// If there is no direction, do nothing
+		if (output->linear.getLength() > 0)
+		{
+			output->linear = output->linear.normalize();
+			output->linear *= maxAcceleration;
+		}
 	}
 };
 
@@ -181,7 +188,8 @@ public:
 		// Write the result to output->linear
 		// You can get the AI's position using character->Position
 		/************************************************************************/
-
+		Seek::getSteering(output);
+		output->linear *= -1.0f;
 	}
 };
 
