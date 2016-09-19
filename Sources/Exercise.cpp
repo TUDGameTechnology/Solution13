@@ -16,6 +16,11 @@
 #include "Flocking.h"
 #include "StateMachine.h"
 
+#include "Reasoner.h"
+#include "Option.h"
+#include "Consideration.h"
+#include "DistanceConsideration.h"
+
 
 
 
@@ -36,6 +41,9 @@ namespace {
 	// Window size should be square otherwise we would need WORLD_SIZE_X and WORLD_SIZE_Z
 	const int width = 512;
 	const int height = 512;
+
+	/** The utility-based reasoner */
+	Reasoner* reasoner;
 
 	// The number of boids in the simulation. If using more, make objects[] larger
 	const int numBoids = 20;
@@ -306,6 +314,11 @@ namespace {
 
 			boid->meshObject->M = mat4::Translation(boid->Position[0], 0.0f, boid->Position[1]) * mat4::RotationY(boid->Orientation + Kore::pi);
 		}
+
+		//////////////////////////////////////////////////////////////////////////
+		// New code for utility-based AI
+		//////////////////////////////////////////////////////////////////////////
+		reasoner->Update(deltaT);
 	}
 
 
@@ -518,6 +531,41 @@ namespace {
 		flockSteering->behaviours.push_back(BlendedSteering::BehaviourAndWeight(
 			vMA, 2.0f
 			));
+
+		//////////////////////////////////////////////////////////////////////////
+		// New code for utility-based AI
+		//////////////////////////////////////////////////////////////////////////
+		reasoner = new Reasoner(moon);
+
+		float Distance = 1.0f;
+
+		// The moon has two options: Wander or Follow the Earth
+		Option* wanderOption = new Option();
+		// Wandering should happen if the moon is close enough to the earth
+		DistanceConsideration* closeEnoughConsideration = new DistanceConsideration();
+		closeEnoughConsideration->SetTarget(earth);
+		ConstCurve* constOneCurve = new ConstCurve();
+		constOneCurve->ConstValue = 1.0f;
+		BooleanCurve* closeEnoughCurve = new BooleanCurve();
+		closeEnoughCurve->comparisonOperator = BooleanCurve::LessThen;
+		closeEnoughCurve->Threshold = Distance;
+		closeEnoughConsideration->SetCurves(constOneCurve, closeEnoughCurve);
+		wanderOption->AddConsideration(closeEnoughConsideration);
+		// TODO: Set the task
+		reasoner->AddOption(wanderOption);
+
+		Option* seekOption = new Option();
+		// Seeking should happen if the moon is far enough away
+		DistanceConsideration* farEnoughConsideration = new DistanceConsideration();
+		farEnoughConsideration->SetTarget(earth);
+		BooleanCurve* farEnoughCurve = new BooleanCurve();
+		farEnoughCurve->comparisonOperator = BooleanCurve::MoreThen;
+		farEnoughCurve->Threshold = Distance;
+		farEnoughConsideration->SetCurves(constOneCurve, farEnoughCurve);
+		seekOption->AddConsideration(farEnoughConsideration);
+		// TODO: Set the task
+		reasoner->AddOption(seekOption);
+
 	}
 
 
