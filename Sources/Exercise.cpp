@@ -20,6 +20,7 @@
 #include "Option.h"
 #include "Consideration.h"
 #include "DistanceConsideration.h"
+#include "Task.h"
 
 
 
@@ -250,14 +251,14 @@ namespace {
 	void updateAI(float deltaT) {
 		// Update the state machine
 		// Get the actions that should be executed
-		Action* actions = moonStateMachine.update();
+		/*Action* actions = moonStateMachine.update();
 
 		// Execute any actions that should be executed
 		while (actions != nullptr) {
 			actions->act();
 			actions = actions->next;
 		}
-
+		*/
 
 		// Update the steering behaviours
 		float duration = deltaT;
@@ -265,16 +266,18 @@ namespace {
 		// One steering output is re-used
 		SteeringOutput steer;
 
-		// Handle the moon
+		/*// Handle the moon
 		moonBehaviour->getSteering(&steer);
 		moon->integrate(steer, 0.95f, duration);
 		moon->trimMaxSpeed(1.0f);
 
+		
+
+		moon->meshObject->M = mat4::Translation(moon->Position[0], 0.0f, moon->Position[1]);*/
+
 		// Keep in bounds of the world
 		TRIM_WORLD(moon->Position[0]);
 		TRIM_WORLD(moon->Position[1]);
-
-		moon->meshObject->M = mat4::Translation(moon->Position[0], 0.0f, moon->Position[1]);
 
 		// Handle the earth - treat player input as a steering output
 		steer.clear();
@@ -425,6 +428,7 @@ namespace {
 		earth = new AICharacter();
 		earth->meshObject = objects[0];
 
+		/*
 		// Set up the moon's behaviours
 		wander = new Wander();
 		wander->character = moon;
@@ -452,12 +456,13 @@ namespace {
 		MoonTransition* FollowingToWandering = new MoonTransition();
 		FollowingToWandering->target = wanderState;
 		FollowingToWandering->next = nullptr;
-
+		*/
+		
 		/************************************************************************/
 		// Task 1.3: After you have completed the MoonCondition object, instantiate it here
 		/************************************************************************/
 
-
+		/*
 		MoonCondition* ShouldFollow = new MoonCondition();
 		// This condition should trigger if the moon is closer than 1 unit to the Earth
 		ShouldFollow->checkIfCloser = true;
@@ -483,7 +488,7 @@ namespace {
 
 		moonStateMachine.initialState = wanderState;
 		moonStateMachine.currentState = wanderState;
-
+		*/
 
 		// Set up the boids
 		for (int i = 0; i < numBoids; i++) {
@@ -547,11 +552,14 @@ namespace {
 		ConstCurve* constOneCurve = new ConstCurve();
 		constOneCurve->ConstValue = 1.0f;
 		BooleanCurve* closeEnoughCurve = new BooleanCurve();
-		closeEnoughCurve->comparisonOperator = BooleanCurve::LessThen;
+		closeEnoughCurve->comparisonOperator = BooleanCurve::MoreThen;
 		closeEnoughCurve->Threshold = Distance;
 		closeEnoughConsideration->SetCurves(constOneCurve, closeEnoughCurve);
 		wanderOption->AddConsideration(closeEnoughConsideration);
-		// TODO: Set the task
+		// Create the corresbonding WanderTask for the wanderOption
+		WanderTask* moonWanderTask = new WanderTask(moon);
+		wanderOption->SetTask(moonWanderTask);
+		
 		reasoner->AddOption(wanderOption);
 
 		Option* seekOption = new Option();
@@ -559,11 +567,16 @@ namespace {
 		DistanceConsideration* farEnoughConsideration = new DistanceConsideration();
 		farEnoughConsideration->SetTarget(earth);
 		BooleanCurve* farEnoughCurve = new BooleanCurve();
-		farEnoughCurve->comparisonOperator = BooleanCurve::MoreThen;
+		farEnoughCurve->comparisonOperator = BooleanCurve::LessThen;
 		farEnoughCurve->Threshold = Distance;
 		farEnoughConsideration->SetCurves(constOneCurve, farEnoughCurve);
 		seekOption->AddConsideration(farEnoughConsideration);
-		// TODO: Set the task
+		// Create the corresbonding FollowTask for the seekOption
+		FollowTask* moonFollowTask = new FollowTask(moon);
+		//Set the earth as a target for the moon
+		moonFollowTask->SetTarget(earth);
+		seekOption->SetTask(moonFollowTask);
+		
 		reasoner->AddOption(seekOption);
 
 	}
