@@ -25,41 +25,35 @@ protected:
 };
 
 
-/** This task makes the character wander */
-class WanderTask : public Task
+/** This class defines a steering task with a undefined steering behaviour*/
+class SteeringTask : public Task
 {
-
 public:
-	WanderTask(AICharacter* aiCharacter):Task(aiCharacter){
-		// Create wandering behaviour
-		wander = new Wander();
-		wander->character = aiCharacter;
-		wander->maxAcceleration = 2.0f;
-		wander->turnSpeed = 2.0f;
-		wander->volatility = 20.0f;
-	};
-
-	virtual void Update(float DeltaTime) override;
+	SteeringTask(AICharacter* aiCharacter):Task(aiCharacter){};
+	void Update(float DeltaTime);
+	
 protected:
-	/** The wandering behaviour the AI should have*/
-	Wander* wander;
-
+	/** The steering behaviour the AI should have*/
+	SteeringBehaviour* steeringBehaviour;
 };
 
-/** This task makes the character follow another character */
-class FollowTask : public Task {
+
+/** This task makes the character wander */
+class WanderTask : public SteeringTask
+{
 public:
-	FollowTask(AICharacter* aiCharacter):Task(aiCharacter){};
+	WanderTask(AICharacter* aiCharacter);
+};
 
-	void SetTarget(AICharacter* inTargetCharacter);
 
-	virtual void Update(float DeltaTime) override;
+/** This task makes the character follow another character */
+class FollowTask : public SteeringTask
+{
+public:
+	FollowTask(AICharacter* aiCharacter, AICharacter* inTargetCharacter);
+	void setTarget(AICharacter* inTargetCharacter);
 
 protected:
-
 	/** The target our character will want to follow */
 	AICharacter* targetCharacter;
-	/** The seeking behaviour the AI should have*/
-	Seek* seek;
-
 };

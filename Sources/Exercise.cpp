@@ -572,9 +572,7 @@ namespace {
 		farEnoughConsideration->SetCurves(constOneCurve, farEnoughCurve);
 		seekOption->AddConsideration(farEnoughConsideration);
 		// Create the corresbonding FollowTask for the seekOption
-		FollowTask* moonFollowTask = new FollowTask(moon);
-		//Set the earth as a target for the moon
-		moonFollowTask->SetTarget(earth);
+		FollowTask* moonFollowTask = new FollowTask(moon,earth);
 		seekOption->SetTask(moonFollowTask);
 		
 		reasoner->AddOption(seekOption);
