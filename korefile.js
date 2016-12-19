@@ -1,11 +1,10 @@
-var solution = new Solution('Exercise9');
-var project = new Project('Exercise9');
+var project = new Project('Exercise14', __dirname);
 
 project.addFile('Sources/**');
 project.setDebugDir('Deployment');
+project.cpp11 = true;
 
-project.addSubProject(Solution.createProject('Kore'));
-
-solution.addProject(project)
-
-return solution;
+Project.createProject('Kore', __dirname).then((subproject) => {
+	project.addSubProject(subproject);
+	resolve(project);
+});
