@@ -22,7 +22,7 @@
 #include "DistanceConsideration.h"
 #include "Task.h"
 
-
+#include "DebugCurve.h"
 
 
 // The world is viewed using an orthographic projection and represents toroidal space: Objects that leave on one side come out on the other side.
@@ -43,11 +43,21 @@ namespace {
 	const int width = 512;
 	const int height = 512;
 
+	float debugUpdateFrequency = 0.5f;
+	float nextDebugUpdate = debugUpdateFrequency;
+
+	// Time in seconds since program start
+	double time = 0.0;
+
+	DebugCurve* debugCurve;
+
 	/** The utility-based reasoner */
 	Reasoner* reasoner;
 
+	DistanceConsideration* farEnoughConsideration;
+
 	// The number of boids in the simulation. If using more, make objects[] larger
-	const int numBoids = 20;
+	const int numBoids = 2;
 
 	// AI Characters for the moon and the Earth
 	AICharacter* moon;
@@ -79,7 +89,6 @@ namespace {
 
 	// State machine for the moon's behaviour
 	StateMachine moonStateMachine;
-
 
 
 
@@ -325,13 +334,24 @@ namespace {
 	}
 
 
+	void updateDebugCurves(float deltaTime) {
+		nextDebugUpdate -= deltaTime;
+		if (nextDebugUpdate < 0.0f)
+		{
+			nextDebugUpdate = debugUpdateFrequency;
 
+			// Update the curves
+			debugCurve->AddValue((float)time, farEnoughConsideration->GetValue());
+		}
+
+	}
 
 
 	void update() {
-		double t = System::time() - startTime;
-		double deltaT = t - lastTime;
-		lastTime = t;
+		time = System::time() - startTime;
+		double deltaT = time - lastTime;
+		updateDebugCurves((float)deltaT);
+		lastTime = time;
 
 		// Update the AI
 		updateAI((float)deltaT);
@@ -340,6 +360,8 @@ namespace {
 
 		Graphics::begin();
 		Graphics::clear(Graphics::ClearColorFlag | Graphics::ClearDepthFlag, 0xff9999FF, 1000.0f);
+		Graphics::setRenderState(DepthTest, true);
+		Graphics::setRenderState(DepthTestCompare, ZCompareLess);
 
 		program->set();
 
@@ -360,6 +382,9 @@ namespace {
 			(*current)->render(tex);
 			++current;
 		}
+
+		// Draw the debug UI
+		debugCurve->Render(width, height);
 
 		Graphics::end();
 		Graphics::swapBuffers();
@@ -564,7 +589,7 @@ namespace {
 
 		Option* seekOption = new Option();
 		// Seeking should happen if the moon is far enough away
-		DistanceConsideration* farEnoughConsideration = new DistanceConsideration();
+		farEnoughConsideration = new DistanceConsideration();
 		farEnoughConsideration->SetTarget(earth);
 		BooleanCurve* farEnoughCurve = new BooleanCurve();
 		farEnoughCurve->comparisonOperator = BooleanCurve::LessThen;
@@ -581,6 +606,9 @@ namespace {
 
 
 	void init() {
+		// Initialize the debug curve shaders etc.
+		DebugCurve::Init();
+
 		FileReader vs("shader.vert");
 		FileReader fs("shader.frag");
 		vertexShader = new Shader(vs.readAll(), vs.size(), VertexShader);
@@ -613,6 +641,7 @@ namespace {
 		objects[2] = new MeshObject("Level/ball.obj", "Level/moonmap1k.jpg", structure);
 
 		// Objects 3++ are the boids
+		// @@TODO: Speed up here
 		for (int i = 0; i < numBoids; i++) {
 			objects[3 + i] = new MeshObject("Level/boid.obj", "Level/basicTiles3x3red.png", structure);
 		}
@@ -620,12 +649,11 @@ namespace {
 		// Initialize the AI
 		initAI();
 
-		Graphics::setRenderState(DepthTest, true);
-		Graphics::setRenderState(DepthTestCompare, ZCompareLess);
 
 		Graphics::setTextureAddressing(tex, Kore::U, Repeat);
 		Graphics::setTextureAddressing(tex, Kore::V, Repeat);
 
+		debugCurve = new DebugCurve();
 	}
 
 }
