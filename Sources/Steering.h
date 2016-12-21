@@ -55,9 +55,6 @@ public:
 
 	MeshObject* meshObject;
 
-
-
-
 	/**
 	* Perfoms a forward Euler integration of the Kinematic for
 	* the given duration, applying the given acceleration and
@@ -102,6 +99,11 @@ public:
 	{
 		return Kore::vec2(Kore::sin(Orientation),
 			Kore::cos(Orientation));
+	}
+
+	Kore::vec3 get3DPosition() const
+	{
+		return Kore::vec3(Position.x(), Position.y(), 0.0f);
 	}
 
 };

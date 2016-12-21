@@ -33,7 +33,72 @@ if (var < -WORLD_SIZE) var = WORLD_SIZE; \
 if (var > WORLD_SIZE) var = -WORLD_SIZE;
 
 
+class DynamicSound {
+public:
 
+	Kore::Sound sound;
+	Kore::u8* original;
+
+	DynamicSound(const char* filename) : sound(filename) {
+		original = new Kore::u8[sound.size];
+		for (int i = 0; i < sound.size; ++i) {
+			original[i] = sound.data[i];
+		}
+	}
+
+	void play(Kore::vec3 listener, Kore::vec3 position) {
+		/************************************************************************/
+		/* Task 1: Implement the missing code in the function to create positional sounds */
+		/************************************************************************/
+
+		// Determine the distance from listener to position
+
+		// Set these values so they reflect the direction to the sound source
+		// For directly right, rightVolume = 1.0, leftVolume = 0.0
+		// For directly left, leftVolume = 1.0, rightVolume = 0.0
+		// For very close to the listener's horizontal position, leftVolume = rightVolume = 0.5
+		// Update: The comment originally said to choose left, right = 0.5 at the largest angles,
+		// this was not the original intention. If you have already finished the exercised and
+		// used the original 0.5, this will also be counted as correct.
+		float rightVolume, leftVolume;
+		Kore::vec3 lisToPos = position - listener;
+		float distance = lisToPos.getLength();
+
+		if (distance > 0.0001f) {
+			// set higher relative volume where the sound comes from (and proportionally lower on the other side)
+			lisToPos.normalize();
+			float cos = lisToPos.x();
+			rightVolume = (cos + 1.0f) / 2.0f;
+			leftVolume = 1 - rightVolume;
+		}
+		else {
+			// if the sound is where the listener is, he hears it evenly from both sides
+			rightVolume = 0.5f;
+			leftVolume = 0.5f;
+		}
+
+
+		Kore::Mixer::stop(&sound);
+
+		// Modify sound data
+		// The arrays contain interleaved stereo data in signed 16 bit integer values
+		// Example - only plays on the right channel with half amplitude
+		// Modify this code to use the values you computed above
+		Kore::s16* source = (Kore::s16*)original;
+		Kore::s16* destinationLeft = (Kore::s16*)sound.left;
+		Kore::s16* destinationRight = (Kore::s16*)sound.right;
+		for (int i = 0; i < sound.size / 2; ++i) {
+			if (i % 2 == 0) { // test for left channel
+				destinationLeft[i / 2] = static_cast<Kore::s16>(source[i] * leftVolume / exp(distance));
+			}
+			else {
+				destinationRight[i / 2] = static_cast<Kore::s16>(source[i] * rightVolume / exp(distance));
+			}
+		}
+
+		Kore::Mixer::play(&sound);
+	}
+};
 
 
 namespace {
@@ -45,6 +110,11 @@ namespace {
 
 	float debugUpdateFrequency = 0.5f;
 	float nextDebugUpdate = debugUpdateFrequency;
+
+	float playSoundFrequency = 0.5f;
+	float nextPlaySound = playSoundFrequency;
+
+	DynamicSound* moonSound;
 
 	// Time in seconds since program start
 	double time = 0.0;
@@ -343,14 +413,24 @@ namespace {
 			// Update the curves
 			debugCurve->AddValue((float)time, farEnoughConsideration->GetValue());
 		}
+	}
 
+	void updateSound(float deltaTime)
+	{
+		nextPlaySound -= deltaTime;
+		if (nextPlaySound < 0.0f)
+		{
+			nextPlaySound = playSoundFrequency;
+			moonSound->play(earth->get3DPosition(), moon->get3DPosition());
+		}
 	}
 
 
 	void update() {
 		time = System::time() - startTime;
 		double deltaT = time - lastTime;
-		updateDebugCurves((float)deltaT);
+		updateDebugCurves((float) deltaT);
+		updateSound((float) deltaT);
 		lastTime = time;
 
 		// Update the AI
@@ -390,55 +470,29 @@ namespace {
 		Graphics::swapBuffers();
 	}
 
-
-
-
-
-	void mouseMove(int windowId, int x, int y, int movementX, int movementY) {
-
-	}
-
-	void mousePress(int windowId, int button, int x, int y) {
-
-	}
-
-	void mouseRelease(int windowId, int button, int x, int y) {
-
-	}
-
-	void keyDown(KeyCode code, wchar_t character) {
-
-		float movementDelta = 0.1f;
-
-		if (code == Key_Left) {
+	void handleKey(KeyCode code, bool isDown)
+	{
+		float movementDelta = isDown ? 0.1f : 0.0f;
+		if (code == Key_Left || code == Key_A) {
 			deltaPosition[0] = -movementDelta;
 		}
-		else if (code == Key_Right) {
+		else if (code == Key_Right || code == Key_D) {
 			deltaPosition[0] = movementDelta;
 		}
-		else if (code == Key_Up) {
+		else if (code == Key_Up || code == Key_W) {
 			deltaPosition[1] = movementDelta;
 		}
-		else if (code == Key_Down) {
+		else if (code == Key_Down || code == Key_S) {
 			deltaPosition[1] = -movementDelta;
 		}
 	}
 
+	void keyDown(KeyCode code, wchar_t character) {
+		handleKey(code, true);
+	}
+
 	void keyUp(KeyCode code, wchar_t character) {
-
-
-		if (code == Key_Left) {
-			deltaPosition[0] = 0.0f;
-		}
-		else if (code == Key_Right) {
-			deltaPosition[0] = 0.0f;
-		}
-		else if (code == Key_Up) {
-			deltaPosition[1] = 0.0f;
-		}
-		else if (code == Key_Down) {
-			deltaPosition[1] = 0.0f;
-		}
+		handleKey(code, false);
 	}
 
 
@@ -656,6 +710,8 @@ namespace {
 		Graphics::setTextureAddressing(tex, Kore::V, Repeat);
 
 		debugCurve = new DebugCurve();
+
+		moonSound = new DynamicSound("untitled.wav");
 	}
 
 }
@@ -690,9 +746,6 @@ namespace {
 
 		Keyboard::the()->KeyDown = keyDown;
 		Keyboard::the()->KeyUp = keyUp;
-		Mouse::the()->Move = mouseMove;
-		Mouse::the()->Press = mousePress;
-		Mouse::the()->Release = mouseRelease;
 
 		Kore::System::start();
 
