@@ -39,6 +39,11 @@ namespace {
 			M = Kore::mat4::Identity();
 		}
 
+		/** Mesh object from already loaded assets */
+		MeshObject(Kore::VertexBuffer* inVertexBuffer, Kore::IndexBuffer* inIndexBuffer, Kore::Texture* inTexture)
+			: vertexBuffer(inVertexBuffer), indexBuffer(inIndexBuffer), image(inTexture), M(Kore::mat4::Identity()) {
+		}
+
 		void render(Kore::TextureUnit tex) {
 			Kore::Graphics::setTexture(tex, image);
 			Kore::Graphics::setVertexBuffer(*vertexBuffer);
@@ -54,7 +59,18 @@ namespace {
 			return image;
 		}
 
+		Kore::VertexBuffer* getVertexBuffer()
+		{
+			return vertexBuffer;
+		}
+
+		Kore::IndexBuffer* getIndexBuffer()
+		{
+			return indexBuffer;
+		}
+
 		Kore::mat4 M;
+
 	private:
 		Kore::VertexBuffer* vertexBuffer;
 		Kore::IndexBuffer* indexBuffer;

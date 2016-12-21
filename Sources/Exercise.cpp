@@ -57,7 +57,7 @@ namespace {
 	DistanceConsideration* farEnoughConsideration;
 
 	// The number of boids in the simulation. If using more, make objects[] larger
-	const int numBoids = 2;
+	const int numBoids = 20;
 
 	// AI Characters for the moon and the Earth
 	AICharacter* moon;
@@ -300,7 +300,7 @@ namespace {
 		TRIM_WORLD(earth->Position[0]);
 		TRIM_WORLD(earth->Position[1]);
 
-		earth->meshObject->M = mat4::Translation(earth->Position[0], 0.0f, earth->Position[1]) * mat4::Scale(2.0f, 2.0f, 2.0f);
+		earth->meshObject->M = mat4::Translation(earth->Position[0], 0.0f, earth->Position[1]) * mat4::Scale(2.0f);
 
 		// Handle the boids
 
@@ -638,12 +638,14 @@ namespace {
 		objects[1]->M = mat4::Translation(0.0f, 0.5f, 0.0f);
 
 		// Object 2 is the Moon
-		objects[2] = new MeshObject("Level/ball.obj", "Level/moonmap1k.jpg", structure);
+		Kore::Texture* moonTexture = new Kore::Texture("Level/moonmap1k.jpg");
+		objects[2] = new MeshObject(objects[0]->getVertexBuffer(), objects[0]->getIndexBuffer(), moonTexture);
 
 		// Objects 3++ are the boids
-		// @@TODO: Speed up here
+		// Only load once and copy in order to speed up the loading time
+		MeshObject* referenceBoid = new MeshObject("Level/boid.obj", "Level/basicTiles3x3red.png", structure);
 		for (int i = 0; i < numBoids; i++) {
-			objects[3 + i] = new MeshObject("Level/boid.obj", "Level/basicTiles3x3red.png", structure);
+			objects[3 + i] = new MeshObject(referenceBoid->getVertexBuffer(), referenceBoid->getIndexBuffer(), referenceBoid->getTexture());
 		}
 
 		// Initialize the AI
