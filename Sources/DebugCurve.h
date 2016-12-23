@@ -54,6 +54,9 @@ class DebugCurve
 	Kore::VertexBuffer* vertexBuffer;
 	Kore::IndexBuffer* indexBuffer;
 
+	// Keeps track if UpdateBuffers needs to be called. In the OpenGL backend, changing the buffers before Graphics::start will not work correctly
+	bool buffersNeedUpdate;
+
 	// Updates the buffers after adding value
 	void UpdateBuffers();
 

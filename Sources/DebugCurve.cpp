@@ -22,9 +22,11 @@ void DebugCurve::UpdateBuffers()
 		return;
 	}
 
+	delete vertexBuffer;
 	vertexBuffer = new Kore::VertexBuffer(numVertices, structure, 0);
 	float* vertices = vertexBuffer->lock();
 
+	delete indexBuffer;
 	indexBuffer = new Kore::IndexBuffer(numVertices);
 	int* indices = indexBuffer->lock();
 	int currentIndex = 0;
@@ -105,7 +107,9 @@ void DebugCurve::CleanupPairs()
 	delete[] oldArray;
 }
 
-DebugCurve::DebugCurve() : screenSpacePosition(Kore::vec2(256.0f, 0.0f)), width(100.0f), height(100.0f), minValue(0.0f), maxValue(1.0f), visibleDuration(5.0f), numPairs(0), maxNumPairs(100)
+DebugCurve::DebugCurve() 
+	: screenSpacePosition(Kore::vec2(256.0f, 256.0f)), width(100.0f), height(100.0f), minValue(0.0f), maxValue(1.0f),
+	visibleDuration(5.0f), numPairs(0), maxNumPairs(100), vertexBuffer(nullptr), indexBuffer(nullptr), buffersNeedUpdate(false)
 {
 	timeValuePairs = new TimeValuePair[maxNumPairs];
 	UpdateBuffers();
@@ -136,15 +140,21 @@ void DebugCurve::AddValue(float time, float value)
 
 	lastTime = time;
 	
-	// Update the buffers
-	UpdateBuffers();
+	buffersNeedUpdate = true;
 }
 
 void DebugCurve::Render(int windowWidth, int windowHeight)
 {
+	if (buffersNeedUpdate)
+	{
+		// Update the buffers
+		UpdateBuffers();
+		buffersNeedUpdate = false;
+	}
+
 	Kore::mat4 m = Kore::mat4::orthogonalProjection(-windowWidth * 0.5f, windowWidth * 0.5f, -windowHeight * 0.5f, windowHeight * 0.5f, -100.0f, 100.0f);
 	// Now, we are in the center of the screen with width and height of 1
-	m = m * Kore::mat4::Translation(screenSpacePosition.x() - windowWidth * 0.5f, screenSpacePosition.y() + windowHeight * 0.5f - height, 0.0f);
+	m = m * Kore::mat4::Translation(screenSpacePosition.x() - windowWidth * 0.5f, -screenSpacePosition.y() + windowHeight * 0.5f - height, 0.0f);
 
 	m = m * Kore::mat4::Scale(width, height, 1.0f);
 	// Now, we are at the center of the screen with correct width and height
@@ -165,6 +175,7 @@ void DebugCurve::Render(int windowWidth, int windowHeight)
 		return;
 	}
 
+	Kore::Graphics::setBlendingMode(Kore::BlendingOperation::SourceAlpha, Kore::BlendingOperation::InverseSourceAlpha);
 	Kore::Graphics::setFloat4(colorLocation, fgColor);
 	Kore::Graphics::setVertexBuffer(*vertexBuffer);
 	Kore::Graphics::setIndexBuffer(*indexBuffer);
