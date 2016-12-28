@@ -10,6 +10,11 @@ class DistanceConsideration : public Consideration, public ITargetedConsideratio
 
 public:
 
+	DistanceConsideration(AICharacter* inTarget)
+	{
+		target = inTarget;
+	}
+
 	virtual float GetValue() const override;
 
 };

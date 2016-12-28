@@ -9,17 +9,14 @@ FontRenderer::FontRenderer(const char* filename, float width, float height)
 	
 	textShaderPainter = new TextShaderPainter();
 	textShaderPainter->setFont(kravur);
-	Kore::mat4 m = Kore::mat4::orthogonalProjection(-width * 0.5f, width * 0.5f, height * 0.5f, -height * 0.5f, -100.0f, 100.0f);
+	// Kore::mat4 m = Kore::mat4::orthogonalProjection(-width * 0.5f, width * 0.5f, height * 0.5f, -height * 0.5f, -100.0f, 100.0f);
+	Kore::mat4 m = Kore::mat4::orthogonalProjection(0.0f, width, height, 0.0f, -100.0f, 100.0f);
 	textShaderPainter->setProjection(m);
 }
 
 FontRenderer::~FontRenderer()
 {
 	delete[] text;
-}
-
-void FontRenderer::Init()
-{
 }
 
 void FontRenderer::SetText(const char* inText)

@@ -2,6 +2,7 @@
 #include "Option.h"
 #include "Kore/Math/Random.h"
 #include "Kore/Log.h"
+#include <string.h>
 
 Reasoner::Reasoner(AICharacter* inOwner) : owner(inOwner)
 {
@@ -29,6 +30,18 @@ void Reasoner::AddOption(Option* option)
 	for (current = &options[0]; *current != nullptr; current++) {};
 	*current = option;
 	option->SetOwner(owner);
+}
+
+const char* Reasoner::GetStateString() const
+{
+	char* result = new char[256];
+	result[0] = 0;
+	Option* const * currentOption = options;
+	for (currentOption; *currentOption != nullptr; currentOption++)
+	{
+		strcat(result, (*currentOption)->GetStateString());
+	}
+	return result;
 }
 
 void Reasoner::EvaluateOptions()
@@ -103,7 +116,15 @@ void Reasoner::EvaluateOptions()
 	/** Replace the currently executing option */
 	if (chosenOption != executingOption)
 	{
+		if (executingOption)
+		{
+			executingOption->Stop();
+		}
 		executingOption = chosenOption;
+		if (executingOption)
+		{
+			executingOption->Start();
+		}
 		Kore::log(Kore::Info, "Reasoner: Executing a new option");
 	}
 }

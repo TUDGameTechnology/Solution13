@@ -18,6 +18,8 @@ public:
 	/** Add an option to the reasoner */
 	void AddOption(Option* option);
 
+	const char* GetStateString() const;
+
 private:
 
 	/** Updates the options and chooses which ones to execute */

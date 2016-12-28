@@ -16,8 +16,6 @@ public:
 	// The screen space position of the upper left corner of the text
 	Kore::vec2 screenSpacePosition;
 
-	static void Init();
-
 	void SetText(const char* inText);
 
 	void SetColor(Kore::Color& inColor);

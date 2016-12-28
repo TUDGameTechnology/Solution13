@@ -13,6 +13,7 @@ class Option
 public:
 
 	Option();
+	Option(const char* inName);
 
 	void SetOwner(AICharacter* inOwner);
 
@@ -22,22 +23,42 @@ public:
 	/** Get the weight of the option, based on its considerations */
 	float GetWeight() const;
 
-	void AddConsideration(Consideration* consideration);
-
 	void Update(float DeltaTime);
 
 	void SetTask(Task* inTask);
 
+	const char* GetName() const;
+
+	const char* GetStateString() const;
+
+	void Start();
+
+	void Stop();
+
+	double GetLastStartTime() const {
+		return LastStartTime;
+	}
+
+	bool GetIsExecuting() const {
+		return isExecuting;
+	}
+
+	void SetRootConsideration(Consideration* newRoot);
+
+
+
 protected:
+	
+	bool isExecuting;
+
+	double LastStartTime;
+
+	const char* name;
+
+	Consideration* rootConsideration;
 
 	/** The simulated AI character */
 	AICharacter* owner;
-
-	/** The maximal number of considerations */
-	const int maxConsiderations = 20;
-
-	/** Null-terminated list of considerations */
-	Consideration** considerations;
 
 	/** The task we are executing */
 	Task* task = nullptr;

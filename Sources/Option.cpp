@@ -1,62 +1,48 @@
 #include "Option.h"
 #include "Consideration.h"
 #include "Task.h"
+#include <float.h>
+#include <Kore/System.h>
 
 Option::Option()
+	:Option(nullptr)
 {
-	considerations = new Consideration*[maxConsiderations];
-	for (int i = 0; i < maxConsiderations; i++)
-	{
-		considerations[i] = 0;
-	}
+}
+
+Option::Option(const char* inName)
+//@@TODO: How to use DBL_MAX and still get a useful result when doing -INF * 0?
+	: name(inName), LastStartTime(999999.0), isExecuting(false), rootConsideration(nullptr)
+{
 }
 
 void Option::SetOwner(AICharacter* inOwner)
 {
 	owner = inOwner;
-	// Set on all considerations
-	for (Consideration** currentConsideration = considerations; *currentConsideration != nullptr; currentConsideration++)
+	if (rootConsideration)
 	{
-		(*currentConsideration)->SetOwner(owner);
+		rootConsideration->SetOwner(inOwner);
 	}
 }
 
 int Option::GetRank() const
 {
-	int maxRank = 0;
-	for (Consideration** currentConsideration = considerations; *currentConsideration != nullptr; currentConsideration++)
+	if (rootConsideration)
 	{
-		int currentRank = (*currentConsideration)->GetRank();
-		if (currentRank > maxRank)
-		{
-			maxRank = currentRank;
-		}
+		return rootConsideration->GetRank();
 	}
-	return maxRank;
+
+	return 0;
 }
 
 float Option::GetWeight() const
 {
-	// Return the product of the individual weights
-	float product = 1.0f;
-	for (Consideration** currentConsideration = considerations; *currentConsideration != nullptr; currentConsideration++)
+	if (rootConsideration)
 	{
-		product *= (*currentConsideration)->GetWeight();
+		return rootConsideration->GetWeight();
 	}
 
-	return product;
+	return 0.0f;
 }
-
-void Option::AddConsideration(Consideration* consideration)
-{
-	Consideration** current = considerations;
-	while (*current != nullptr)
-	{
-		current++;
-	}
-	*current = consideration;
-}
-
 
 void Option::Update(float DeltaTime)
 {
@@ -69,4 +55,34 @@ void Option::Update(float DeltaTime)
 void Option::SetTask(Task* inTask)
 {
 	task = inTask;
+}
+
+const char* Option::GetName() const
+{
+	return name;
+}
+
+const char* Option::GetStateString() const
+{
+	char* result = new char[256];
+	result[0] = 0;
+	snprintf(result, 256, "%s: R: %i, W: %.2f\n", GetName(), GetRank(), GetWeight());
+
+	return result;
+}
+
+void Option::Start()
+{
+	LastStartTime = Kore::System::time();
+	isExecuting = true;
+}
+
+void Option::Stop()
+{
+	isExecuting = false;
+}
+
+void Option::SetRootConsideration(Consideration* newRoot)
+{
+	rootConsideration = newRoot;
 }

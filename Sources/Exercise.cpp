@@ -14,7 +14,6 @@
 #include "MeshObject.h"
 #include "Steering.h"
 #include "Flocking.h"
-#include "StateMachine.h"
 
 #include "Reasoner.h"
 #include "Option.h"
@@ -24,6 +23,8 @@
 
 #include "DebugCurve.h"
 #include "FontRenderer.h"
+#include "DynamicSound.h"
+#include "LastExecutionConsideration.h"
 
 
 // The world is viewed using an orthographic projection and represents toroidal space: Objects that leave on one side come out on the other side.
@@ -32,75 +33,6 @@
 #define TRIM_WORLD(var) \
 if (var < -WORLD_SIZE) var = WORLD_SIZE; \
 if (var > WORLD_SIZE) var = -WORLD_SIZE;
-
-
-class DynamicSound {
-public:
-
-	Kore::Sound sound;
-	Kore::u8* original;
-
-	DynamicSound(const char* filename) : sound(filename) {
-		original = new Kore::u8[sound.size];
-		for (int i = 0; i < sound.size; ++i) {
-			original[i] = sound.data[i];
-		}
-	}
-
-	void play(Kore::vec3 listener, Kore::vec3 position) {
-		/************************************************************************/
-		/* Task 1: Implement the missing code in the function to create positional sounds */
-		/************************************************************************/
-
-		// Determine the distance from listener to position
-
-		// Set these values so they reflect the direction to the sound source
-		// For directly right, rightVolume = 1.0, leftVolume = 0.0
-		// For directly left, leftVolume = 1.0, rightVolume = 0.0
-		// For very close to the listener's horizontal position, leftVolume = rightVolume = 0.5
-		// Update: The comment originally said to choose left, right = 0.5 at the largest angles,
-		// this was not the original intention. If you have already finished the exercised and
-		// used the original 0.5, this will also be counted as correct.
-		float rightVolume, leftVolume;
-		Kore::vec3 lisToPos = position - listener;
-		float distance = lisToPos.getLength();
-
-		if (distance > 0.0001f) {
-			// set higher relative volume where the sound comes from (and proportionally lower on the other side)
-			lisToPos.normalize();
-			float cos = lisToPos.x();
-			rightVolume = (cos + 1.0f) / 2.0f;
-			leftVolume = 1 - rightVolume;
-		}
-		else {
-			// if the sound is where the listener is, he hears it evenly from both sides
-			rightVolume = 0.5f;
-			leftVolume = 0.5f;
-		}
-
-
-		Kore::Mixer::stop(&sound);
-
-		// Modify sound data
-		// The arrays contain interleaved stereo data in signed 16 bit integer values
-		// Example - only plays on the right channel with half amplitude
-		// Modify this code to use the values you computed above
-		Kore::s16* source = (Kore::s16*)original;
-		Kore::s16* destinationLeft = (Kore::s16*)sound.left;
-		Kore::s16* destinationRight = (Kore::s16*)sound.right;
-		for (int i = 0; i < sound.size / 2; ++i) {
-			if (i % 2 == 0) { // test for left channel
-				destinationLeft[i / 2] = static_cast<Kore::s16>(source[i] * leftVolume / exp(distance));
-			}
-			else {
-				destinationRight[i / 2] = static_cast<Kore::s16>(source[i] * rightVolume / exp(distance));
-			}
-		}
-
-		Kore::Mixer::play(&sound);
-	}
-};
-
 
 namespace {
 	using namespace Kore;
@@ -111,26 +43,33 @@ namespace {
 	const int width = 512;
 	const int height = 512;
 
+	// Variables for the debug visualizers
 	float debugUpdateFrequency = 0.5f;
 	float nextDebugUpdate = debugUpdateFrequency;
 
+	DebugCurve* debugCurve;
+
+	// Variables for when the next sound will be played
 	float playSoundFrequency = 0.5f;
 	float nextPlaySound = playSoundFrequency;
 
+	// The sound emitted by the moon object
 	DynamicSound* moonSound;
 
 	// Time in seconds since program start
 	double time = 0.0;
 
-	DebugCurve* debugCurve;
+	// The number of boids in the simulation. If using more, make objects[] larger
+	const int numBoids = 20;
+
+	// Array holding the boids
+	AICharacter* boids[numBoids];
 
 	/** The utility-based reasoner */
 	Reasoner* reasoner;
 
 	DistanceConsideration* farEnoughConsideration;
-
-	// The number of boids in the simulation. If using more, make objects[] larger
-	const int numBoids = 20;
+	LastExecutionConsideration* lastExecutionConsideration;
 
 	// AI Characters for the moon and the Earth
 	AICharacter* moon;
@@ -139,8 +78,6 @@ namespace {
 	// Management for the whole flock
 	Flock flock;
 
-	// Array holding the boids
-	AICharacter* boids[20];
 
 	// Flock steering component, blends the three involved delegated steering behaviours
 	BlendedSteering* flockSteering;
@@ -159,11 +96,6 @@ namespace {
 
 	// The current steering behaviour for the moon
 	SteeringBehaviour* moonBehaviour;
-
-	// State machine for the moon's behaviour
-	StateMachine moonStateMachine;
-
-
 
 	double startTime;
 	Shader* vertexShader;
@@ -185,177 +117,14 @@ namespace {
 	ConstantLocation vLocation;
 	ConstantLocation mLocation;
 
-
-
-
-	// State for managing actions in the state machine
-	enum State { Wandering, Following };
-
-
-	// An action that can change the behaviour of the moon AI
-	class MoonAction : public Action {
-	public:
-		State state;
-
-		virtual void act() {
-			if (state == Following) {
-				moonBehaviour = seek;
-				Kore::log(Kore::Info, "Moon is now seeking");
-			}
-			else {
-				moonBehaviour = wander;
-				Kore::log(Kore::Info, "Moon is now wandering");
-			}
-		}
-	};
-
-	// A state in the moon's state machine. Returns the appropriate MoonAction to switch the state as the entry action
-	class MoonState : public StateMachineState
-	{
-	public:
-
-		State state;
-
-		virtual Action* getEntryActions() {
-			MoonAction* changeStatusAction = new MoonAction();
-			changeStatusAction->state = state;
-			changeStatusAction->next = nullptr;
-			return changeStatusAction;
-		}
-
-		virtual Action* getActions() {
-			Action* result = new Action();
-			result->next = nullptr;
-			return result;
-		}
-
-		virtual Action* getExitActions() {
-			Action* result = new Action();
-			result->next = nullptr;
-			return result;
-		}
-
-	};
-
-
-	// A transition for the Moon's state machine.
-	// Is realized as a fixed target transition with a condition
-	class MoonTransition :
-		public Transition,
-		public ConditionalTransitionMixin,
-		public FixedTargetTransitionMixin
-	{
-	public:
-
-		virtual Action* getActions() {
-			Action* result = new Action();
-			result->next = nullptr;
-			return result;
-		}
-
-		virtual bool isTriggered() {
-			bool result = ConditionalTransitionMixin::isTriggered();
-			return result;
-		}
-
-		StateMachineState* getTargetState()
-		{
-			return FixedTargetTransitionMixin::getTargetState();
-		}
-
-	};
-
-	/************************************************************************/
-	// Task 1.3: Complete this class so that it correctly returns
-	// Checks if the moon is closer or further away from the specified distance
-	// Should only return true once whenever the state should change (i.e. whenever
-	// the distance is less or more than the threshold, return true once).
-	/************************************************************************/
-	class MoonCondition : public Condition {
-	public:
-		float transitionDistance;
-
-		bool checkIfCloser;
-
-		AICharacter* earthCharacter;
-
-		AICharacter* moonCharacter;
-
-		bool lastResult;
-
-		/**
-		* Performs the test for this condition.
-		*/
-		virtual bool test() {
-			float distance = earthCharacter->Position.distance(moonCharacter->Position);
-			bool result;
-
-			if (checkIfCloser) {
-				result = (distance < transitionDistance);
-				if (result != lastResult) {
-					if (checkIfCloser) {
-						Kore::log(Kore::Info, "checkIfCloser TRUE:");
-					}
-					else {
-						Kore::log(Kore::Info, "checkIfCloser FALSE:");
-					}
-					if (result) {
-						Kore::log(Kore::Info, "Moon is closer than distance");
-					}
-					else {
-						Kore::log(Kore::Info, "Moon is further than distance");
-					}
-				}
-			}
-			else {
-				result = (distance >= transitionDistance);
-				if (result != lastResult) {
-					if (checkIfCloser) {
-						Kore::log(Kore::Info, "checkIfCloser TRUE:");
-					}
-					else {
-						Kore::log(Kore::Info, "checkIfCloser FALSE:");
-					}
-					if (result) {
-						Kore::log(Kore::Info, "Moon is further than distance");
-					}
-					else {
-						Kore::log(Kore::Info, "Moon is closer than distance");
-					}
-				}
-			}
-			lastResult = result;
-			return result;
-		}
-	};
-
 	// Update the AI
 	void updateAI(float deltaT) {
-		// Update the state machine
-		// Get the actions that should be executed
-		/*Action* actions = moonStateMachine.update();
-
-		// Execute any actions that should be executed
-		while (actions != nullptr) {
-			actions->act();
-			actions = actions->next;
-		}
-		*/
 
 		// Update the steering behaviours
 		float duration = deltaT;
 
 		// One steering output is re-used
 		SteeringOutput steer;
-
-		/*// Handle the moon
-		moonBehaviour->getSteering(&steer);
-		moon->integrate(steer, 0.95f, duration);
-		moon->trimMaxSpeed(1.0f);
-
-		
-
-		moon->meshObject->M = mat4::Translation(moon->Position[0], 0.0f, moon->Position[1]);*/
 
 		// Keep in bounds of the world
 		TRIM_WORLD(moon->Position[0]);
@@ -400,12 +169,10 @@ namespace {
 			boid->meshObject->M = mat4::Translation(boid->Position[0], 0.0f, boid->Position[1]) * mat4::RotationY(boid->Orientation + Kore::pi);
 		}
 
-		//////////////////////////////////////////////////////////////////////////
-		// New code for utility-based AI
-		//////////////////////////////////////////////////////////////////////////
+		// Update the reasoner
 		reasoner->Update(deltaT);
+		fontRenderer->SetText(reasoner->GetStateString());
 	}
-
 
 	void updateDebugCurves(float deltaTime) {
 		nextDebugUpdate -= deltaTime;
@@ -414,7 +181,7 @@ namespace {
 			nextDebugUpdate = debugUpdateFrequency;
 
 			// Update the curves
-			debugCurve->AddValue((float)time, farEnoughConsideration->GetValue());
+			// debugCurve->AddValue((float)time, farEnoughConsideration->GetValue());
 		}
 	}
 
@@ -513,68 +280,6 @@ namespace {
 		earth = new AICharacter();
 		earth->meshObject = objects[0];
 
-		/*
-		// Set up the moon's behaviours
-		wander = new Wander();
-		wander->character = moon;
-		wander->maxAcceleration = 2.0f;
-		wander->turnSpeed = 2.0f;
-		wander->volatility = 20.0f;
-
-		seek = new Seek();
-		seek->character = moon;
-		seek->maxAcceleration = 3.0f;
-		seek->target = &(earth->Position);
-
-		moonBehaviour = wander;
-
-		// Set up the moon's state machine
-		MoonState* wanderState = new MoonState();
-		MoonState* followState = new MoonState();
-		wanderState->state = Wandering;
-		followState->state = Following;
-
-		MoonTransition* WanderingToFollowing = new MoonTransition();
-		WanderingToFollowing->target = followState;
-		WanderingToFollowing->next = nullptr;
-
-		MoonTransition* FollowingToWandering = new MoonTransition();
-		FollowingToWandering->target = wanderState;
-		FollowingToWandering->next = nullptr;
-		*/
-		
-		/************************************************************************/
-		// Task 1.3: After you have completed the MoonCondition object, instantiate it here
-		/************************************************************************/
-
-		/*
-		MoonCondition* ShouldFollow = new MoonCondition();
-		// This condition should trigger if the moon is closer than 1 unit to the Earth
-		ShouldFollow->checkIfCloser = true;
-		ShouldFollow->earthCharacter = earth;
-		ShouldFollow->moonCharacter = moon;
-		ShouldFollow->transitionDistance = 1.0f;
-
-		MoonCondition* ShouldWander = new MoonCondition();
-		// This condition should trigger if the moon is further away than 1 unit from the Earth
-		ShouldWander->checkIfCloser = false;
-		ShouldWander->earthCharacter = earth;
-		ShouldWander->moonCharacter = moon;
-		ShouldWander->transitionDistance = 1.0f;
-
-
-
-
-		WanderingToFollowing->condition = ShouldFollow;
-		FollowingToWandering->condition = ShouldWander;
-
-		wanderState->firstTransition = WanderingToFollowing;
-		followState->firstTransition = FollowingToWandering;
-
-		moonStateMachine.initialState = wanderState;
-		moonStateMachine.currentState = wanderState;
-		*/
-
 		// Set up the boids
 		for (int i = 0; i < numBoids; i++) {
 			boids[i] = new AICharacter();
@@ -622,41 +327,66 @@ namespace {
 			vMA, 2.0f
 			));
 
-		//////////////////////////////////////////////////////////////////////////
-		// New code for utility-based AI
-		//////////////////////////////////////////////////////////////////////////
+		// Set up the reasoner
 		reasoner = new Reasoner(moon);
 
-		float Distance = 1.0f;
+		float distance = 1.0f;
 
 		// The moon has two options: Wander or Follow the Earth
-		Option* wanderOption = new Option();
+		Option* wanderOption = new Option("Wander");
 		// Wandering should happen if the moon is close enough to the earth
-		DistanceConsideration* closeEnoughConsideration = new DistanceConsideration();
-		closeEnoughConsideration->SetTarget(earth);
+		DistanceConsideration* closeEnoughConsideration = new DistanceConsideration(earth);
 		ConstCurve* constOneCurve = new ConstCurve();
 		constOneCurve->ConstValue = 1.0f;
 		BooleanCurve* closeEnoughCurve = new BooleanCurve();
 		closeEnoughCurve->comparisonOperator = BooleanCurve::MoreThen;
-		closeEnoughCurve->Threshold = Distance;
+		closeEnoughCurve->Threshold = distance;
 		closeEnoughConsideration->SetCurves(constOneCurve, closeEnoughCurve);
-		wanderOption->AddConsideration(closeEnoughConsideration);
-		// Create the corresbonding WanderTask for the wanderOption
+		wanderOption->SetRootConsideration(closeEnoughConsideration);
+		// Create the corresponding WanderTask for the wanderOption
 		WanderTask* moonWanderTask = new WanderTask(moon);
 		wanderOption->SetTask(moonWanderTask);
 		
 		reasoner->AddOption(wanderOption);
 
-		Option* seekOption = new Option();
-		// Seeking should happen if the moon is far enough away
-		farEnoughConsideration = new DistanceConsideration();
-		farEnoughConsideration->SetTarget(earth);
-		BooleanCurve* farEnoughCurve = new BooleanCurve();
-		farEnoughCurve->comparisonOperator = BooleanCurve::LessThen;
-		farEnoughCurve->Threshold = Distance;
-		farEnoughConsideration->SetCurves(constOneCurve, farEnoughCurve);
-		seekOption->AddConsideration(farEnoughConsideration);
-		// Create the corresbonding FollowTask for the seekOption
+		Option* seekOption = new Option("Seek");
+
+		// If the moon is close enough, it should start seeking
+
+		
+		// We use three basic considerations
+		// First one: Drives weight to 1 if the moon is close enough
+		DistanceConsideration* moonCloseToEarth = new DistanceConsideration(earth);
+		moonCloseToEarth->SetOwner(moon);
+		BooleanCurve* closerThanDistanceCurve = new BooleanCurve(BooleanCurve::LessThen, distance);
+		moonCloseToEarth->SetCurves(constOneCurve, closerThanDistanceCurve);
+
+
+		// Second one: An "is executing" one
+		IsExecutingConsideration* isExecuting = new IsExecutingConsideration(seekOption);
+		isExecuting->SetCurves(constOneCurve, new IdentityCurve());
+		
+		// Third one: A "time since last execution"
+		lastExecutionConsideration = new LastExecutionConsideration(seekOption);
+		ExponentialDecayCurve* lastExecutionCurve = new ExponentialDecayCurve(0.8f, 5.0f);
+		lastExecutionConsideration->SetCurves(constOneCurve, lastExecutionCurve);
+
+		// We combine the latter two so that the IsExecutingConsideration can pull the other curve to 0 to 
+		// prevent the moon from switching back to following after a while
+		CompositeConsideration* executionHistoryComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Multiply);
+		executionHistoryComposite->AddConsideration(isExecuting);
+		executionHistoryComposite->AddConsideration(lastExecutionConsideration);
+
+		// Then, we combine to get the overall curve
+		CompositeConsideration* root = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Max);
+		root->AddConsideration(executionHistoryComposite);
+		root->AddConsideration(moonCloseToEarth);
+
+
+
+		seekOption->SetRootConsideration(root);
+
+		// Create the corresponding FollowTask for the seekOption
 		FollowTask* moonFollowTask = new FollowTask(moon,earth);
 		seekOption->SetTask(moonFollowTask);
 		
@@ -719,7 +449,7 @@ namespace {
 
 		moonSound = new DynamicSound("untitled.wav");
 
-		fontRenderer = new FontRenderer("Roboto", width, height);
+		fontRenderer = new FontRenderer("Roboto", (float) width, (float) height);
 		fontRenderer->SetText("Hello, world!");
 		fontRenderer->SetColor(Kore::Color(Kore::Color::Red));
 	}
