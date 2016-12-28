@@ -23,6 +23,7 @@
 #include "Task.h"
 
 #include "DebugCurve.h"
+#include "FontRenderer.h"
 
 
 // The world is viewed using an orthographic projection and represents toroidal space: Objects that leave on one side come out on the other side.
@@ -103,6 +104,8 @@ public:
 
 namespace {
 	using namespace Kore;
+
+	FontRenderer* fontRenderer;
 
 	// Window size should be square otherwise we would need WORLD_SIZE_X and WORLD_SIZE_Z
 	const int width = 512;
@@ -466,6 +469,9 @@ namespace {
 		// Draw the debug UI
 		debugCurve->Render(width, height);
 
+		// Draw the text
+		fontRenderer->Render();
+
 		Graphics::end();
 		Graphics::swapBuffers();
 	}
@@ -712,6 +718,10 @@ namespace {
 		debugCurve = new DebugCurve();
 
 		moonSound = new DynamicSound("untitled.wav");
+
+		fontRenderer = new FontRenderer("Roboto", width, height);
+		fontRenderer->SetText("Hello, world!");
+		fontRenderer->SetColor(Kore::Color(Kore::Color::Red));
 	}
 
 }
@@ -748,6 +758,8 @@ namespace {
 		Keyboard::the()->KeyUp = keyUp;
 
 		Kore::System::start();
+
+
 
 		return 0;
 	}
