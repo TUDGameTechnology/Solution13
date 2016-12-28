@@ -39,6 +39,10 @@ public:
 		return LastStartTime;
 	}
 
+	double GetLastStopTime() const {
+		return LastStopTime;
+	}
+
 	bool GetIsExecuting() const {
 		return isExecuting;
 	}
@@ -52,6 +56,7 @@ protected:
 	bool isExecuting;
 
 	double LastStartTime;
+	double LastStopTime;
 
 	const char* name;
 

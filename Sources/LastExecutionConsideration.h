@@ -37,6 +37,21 @@ public:
 
 };
 
+/** Returns the time elapsed since the last time the specified option was stopped. Negative values indicate that it has not been stopped yet. */ 
+class LastExecutionStoppedConsideration : public TargetOptionConsideration
+{
+
+public:
+
+	LastExecutionStoppedConsideration(Option* inTargetOption)
+		: TargetOptionConsideration(inTargetOption)
+	{
+	}
+
+	virtual float GetValue() const override;
+
+};
+
 /** Returns 1 iff the option is being executed */
 class IsExecutingConsideration : public TargetOptionConsideration
 {

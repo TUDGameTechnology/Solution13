@@ -125,6 +125,6 @@ void Reasoner::EvaluateOptions()
 		{
 			executingOption->Start();
 		}
-		Kore::log(Kore::Info, "Reasoner: Executing a new option");
+		Kore::log(Kore::Info, "Reasoner: Executing a new option: %s", executingOption->GetName());
 	}
 }

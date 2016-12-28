@@ -56,6 +56,11 @@ float BooleanCurve::EvaluateAt(float x) const
 
 float ExponentialDecayCurve::EvaluateAt(float x) const
 {	
+	if (x < 0.0f)
+	{
+		return 0.0f;
+	}
+
 	float result = Kore::pow(Base, x) * Multiplier;
 	// Clamp NAN values to the highest/lowest value to allow multiplication
 	if (isinf(result))
@@ -126,4 +131,9 @@ void CompositeConsideration::AddConsideration(Consideration* consideration)
 float IdentityCurve::EvaluateAt(float x) const
 {
 	return x;
+}
+
+float ValueInRangeCurve::EvaluateAt(float x) const
+{
+	return (x > LowerBound && x < UpperBound) * Multiplier;
 }

@@ -69,7 +69,7 @@ namespace {
 	Reasoner* reasoner;
 
 	DistanceConsideration* farEnoughConsideration;
-	LastExecutionConsideration* lastExecutionConsideration;
+	LastExecutionStoppedConsideration* lastExecutionConsideration;
 
 	// AI Characters for the moon and the Earth
 	AICharacter* moon;
@@ -333,7 +333,7 @@ namespace {
 		float distance = 1.0f;
 
 		// The moon has two options: Wander or Follow the Earth
-		Option* wanderOption = new Option("Wander");
+		Option* wanderOption = new Option("W");
 		// Wandering should happen if the moon is close enough to the earth
 		DistanceConsideration* closeEnoughConsideration = new DistanceConsideration(earth);
 		ConstCurve* constOneCurve = new ConstCurve();
@@ -349,7 +349,7 @@ namespace {
 		
 		reasoner->AddOption(wanderOption);
 
-		Option* seekOption = new Option("Seek");
+		Option* seekOption = new Option("S");
 
 		// If the moon is close enough, it should start seeking
 
@@ -361,36 +361,43 @@ namespace {
 		BooleanCurve* closerThanDistanceCurve = new BooleanCurve(BooleanCurve::LessThen, distance);
 		moonCloseToEarth->SetCurves(constOneCurve, closerThanDistanceCurve);
 
-
-		// Second one: An "is executing" one
-		IsExecutingConsideration* isExecuting = new IsExecutingConsideration(seekOption);
-		isExecuting->SetCurves(constOneCurve, new IdentityCurve());
 		
-		// Third one: A "time since last execution"
-		lastExecutionConsideration = new LastExecutionConsideration(seekOption);
-		ExponentialDecayCurve* lastExecutionCurve = new ExponentialDecayCurve(0.8f, 5.0f);
+		// Third one: A "time since last execution stopped"
+		lastExecutionConsideration = new LastExecutionStoppedConsideration(seekOption);
+		ExponentialDecayCurve* lastExecutionCurve = new ExponentialDecayCurve(0.8f, 50.0f);
 		lastExecutionConsideration->SetCurves(constOneCurve, lastExecutionCurve);
+
+
+		LastExecutionStoppedConsideration* optIn = new LastExecutionStoppedConsideration(seekOption);
+		// We use this curve to force this option right after seek has ended
+		ValueInRangeCurve* optInCurve = new ValueInRangeCurve(0.0f, 0.3f, 2.0f);
+		optIn->SetCurves(optInCurve, optInCurve);
+
+		Option* continueSeekOption = new Option("CS");
+		CompositeConsideration* optOutComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Multiply);
+		IsExecutingConsideration* isExecuting = new IsExecutingConsideration(continueSeekOption);
+		isExecuting->SetCurves(constOneCurve, new IdentityCurve());
+		optOutComposite->AddConsideration(isExecuting);
+		optOutComposite->AddConsideration(lastExecutionConsideration);
+
 
 		// We combine the latter two so that the IsExecutingConsideration can pull the other curve to 0 to 
 		// prevent the moon from switching back to following after a while
-		CompositeConsideration* executionHistoryComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Multiply);
-		executionHistoryComposite->AddConsideration(isExecuting);
-		executionHistoryComposite->AddConsideration(lastExecutionConsideration);
+		CompositeConsideration* executionHistoryComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Max);
+		executionHistoryComposite->AddConsideration(optIn);
+		executionHistoryComposite->AddConsideration(optOutComposite);
 
-		// Then, we combine to get the overall curve
-		CompositeConsideration* root = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Max);
-		root->AddConsideration(executionHistoryComposite);
-		root->AddConsideration(moonCloseToEarth);
-
-
-
-		seekOption->SetRootConsideration(root);
+		seekOption->SetRootConsideration(moonCloseToEarth);
 
 		// Create the corresponding FollowTask for the seekOption
 		FollowTask* moonFollowTask = new FollowTask(moon,earth);
 		seekOption->SetTask(moonFollowTask);
 		
 		reasoner->AddOption(seekOption);
+
+		continueSeekOption->SetRootConsideration(executionHistoryComposite);
+		continueSeekOption->SetTask(moonFollowTask);
+		reasoner->AddOption(continueSeekOption);
 
 	}
 

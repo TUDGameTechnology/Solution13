@@ -10,8 +10,7 @@ Option::Option()
 }
 
 Option::Option(const char* inName)
-//@@TODO: How to use DBL_MAX and still get a useful result when doing -INF * 0?
-	: name(inName), LastStartTime(999999.0), isExecuting(false), rootConsideration(nullptr)
+	: name(inName), LastStartTime(DBL_MAX), LastStopTime(DBL_MAX), isExecuting(false), rootConsideration(nullptr)
 {
 }
 
@@ -74,11 +73,13 @@ const char* Option::GetStateString() const
 void Option::Start()
 {
 	LastStartTime = Kore::System::time();
+	LastStopTime = DBL_MAX;
 	isExecuting = true;
 }
 
 void Option::Stop()
 {
+	LastStopTime = Kore::System::time();
 	isExecuting = false;
 }
 

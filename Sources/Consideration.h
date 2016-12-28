@@ -38,6 +38,24 @@ public:
 
 };
 
+
+class ValueInRangeCurve : public Curve
+{
+public:	
+
+	float LowerBound;
+	float UpperBound;
+	float Multiplier;
+
+	ValueInRangeCurve(float lower, float upper, float multiplier = 1.0f)
+		: LowerBound(lower), UpperBound(upper), Multiplier(multiplier)
+	{
+	}
+
+	virtual float EvaluateAt(float x) const override;
+
+};
+
 /** A curve that evaluates to 0 below a threshold and 1 above the threshold */
 class BooleanCurve : public Curve
 {
@@ -61,7 +79,7 @@ public:
 	virtual float EvaluateAt(float x) const override;
 };
 
-/** Calculates (Base ^ x) * Multiplier*/
+/** Calculates (Base ^ x) * Multiplier for x >= 0, 0 for x < 0 */
 class ExponentialDecayCurve : public Curve
 {
 
