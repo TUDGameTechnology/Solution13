@@ -17,7 +17,7 @@ public:
 
 	void play(Kore::vec3 listener, Kore::vec3 position) {
 		/************************************************************************/
-		/* Task 1: Implement the missing code in the function to create positional sounds */
+		/* Task P13.3: Implement the missing code in the function to create positional sounds */
 		/************************************************************************/
 
 		// Determine the distance from listener to position

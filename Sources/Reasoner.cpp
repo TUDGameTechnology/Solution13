@@ -56,6 +56,10 @@ void Reasoner::SetOwner(AICharacter* inOwner)
 
 void Reasoner::EvaluateOptions()
 {
+	//////////////////////////////////////////////////////////////////////////
+	// Task P13.2 - Implement the missing code in this function
+	//////////////////////////////////////////////////////////////////////////
+
 	// Clear the two arrays
 	for (int i = 0; i < maxOptions; i++)
 	{
