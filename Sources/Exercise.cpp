@@ -27,13 +27,6 @@
 #include "LastExecutionConsideration.h"
 
 
-// The world is viewed using an orthographic projection and represents toroidal space: Objects that leave on one side come out on the other side.
-#define WORLD_SIZE 3.0f
-
-#define TRIM_WORLD(var) \
-if (var < -WORLD_SIZE) var = WORLD_SIZE; \
-if (var > WORLD_SIZE) var = -WORLD_SIZE;
-
 namespace {
 	using namespace Kore;
 
@@ -43,14 +36,27 @@ namespace {
 	const int width = 512;
 	const int height = 512;
 
+	// The world is viewed using an orthographic projection and represents toroidal space: Objects that leave on one side come out on the other side.
+	const float worldSize = 3.0f;
+
+	// Trims the input variable to be inside the world size
+	void TrimWorld(float& x)
+	{
+		if (x < -worldSize) x = worldSize;
+		if (x > worldSize) x = -worldSize;
+	}
+
 	// Variables for the debug visualizers
 	float debugUpdateFrequency = 0.5f;
 	float nextDebugUpdate = debugUpdateFrequency;
 
 	DebugCurve* debugCurve;
 
+	// The consideration which we will be visualizing
+	Consideration* debuggedConsideration = nullptr;
+
 	// Variables for when the next sound will be played
-	float playSoundFrequency = 0.5f;
+	float playSoundFrequency = 1.0f;
 	float nextPlaySound = playSoundFrequency;
 
 	// The sound emitted by the moon object
@@ -68,16 +74,12 @@ namespace {
 	/** The utility-based reasoner */
 	Reasoner* reasoner;
 
-	DistanceConsideration* farEnoughConsideration;
-	LastExecutionStoppedConsideration* lastExecutionConsideration;
-
 	// AI Characters for the moon and the Earth
 	AICharacter* moon;
 	AICharacter* earth;
 
 	// Management for the whole flock
 	Flock flock;
-
 
 	// Flock steering component, blends the three involved delegated steering behaviours
 	BlendedSteering* flockSteering;
@@ -97,12 +99,12 @@ namespace {
 	// The current steering behaviour for the moon
 	SteeringBehaviour* moonBehaviour;
 
-	double startTime;
+	double startTime = 0.0;
 	Shader* vertexShader;
 	Shader* fragmentShader;
 	Program* program;
 
-	double lastTime;
+	double lastTime = 0.0;
 
 	// null terminated array of MeshObject pointers
 	MeshObject* objects[] = { nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr };
@@ -127,8 +129,8 @@ namespace {
 		SteeringOutput steer;
 
 		// Keep in bounds of the world
-		TRIM_WORLD(moon->Position[0]);
-		TRIM_WORLD(moon->Position[1]);
+		TrimWorld(moon->Position[0]);
+		TrimWorld(moon->Position[1]);
 
 		// Handle the earth - treat player input as a steering output
 		steer.clear();
@@ -139,13 +141,12 @@ namespace {
 		earth->trimMaxSpeed(3.0f);
 
 		// Keep in bounds of the world
-		TRIM_WORLD(earth->Position[0]);
-		TRIM_WORLD(earth->Position[1]);
+		TrimWorld(earth->Position[0]);
+		TrimWorld(earth->Position[1]);
 
 		earth->meshObject->M = mat4::Translation(earth->Position[0], 0.0f, earth->Position[1]) * mat4::Scale(2.0f);
 
 		// Handle the boids
-
 		for (int i = 0; i < numBoids; i++) {
 			AICharacter* boid = boids[i];
 
@@ -163,14 +164,16 @@ namespace {
 			boid->trimMaxSpeed(4.0f);
 
 			// Keep in bounds of the world
-			TRIM_WORLD(boid->Position[0]);
-			TRIM_WORLD(boid->Position[1]);
+			TrimWorld(boid->Position[0]);
+			TrimWorld(boid->Position[1]);
 
 			boid->meshObject->M = mat4::Translation(boid->Position[0], 0.0f, boid->Position[1]) * mat4::RotationY(boid->Orientation + Kore::pi);
 		}
 
 		// Update the reasoner
 		reasoner->Update(deltaT);
+
+		// Show the debug output for the reasoner
 		fontRenderer->SetText(reasoner->GetStateString());
 	}
 
@@ -180,8 +183,11 @@ namespace {
 		{
 			nextDebugUpdate = debugUpdateFrequency;
 
-			// Update the curves
-			// debugCurve->AddValue((float)time, farEnoughConsideration->GetValue());
+			// Update the debug curve
+			if (debuggedConsideration)
+			{
+				debugCurve->AddValue((float)time, debuggedConsideration->GetWeight());
+			}
 		}
 	}
 
@@ -216,7 +222,7 @@ namespace {
 		program->set();
 
 		// set the camera - orthogonal projection
-		float val = WORLD_SIZE;
+		float val = worldSize;
 		P = mat4::orthogonalProjection(-val, val, -val, val, -val, val);
 		View = mat4::RotationX(Kore::pi / 2.0f * 3.0f);
 		Graphics::setMatrix(pLocation, P);
@@ -285,8 +291,8 @@ namespace {
 			boids[i] = new AICharacter();
 			AICharacter* current = boids[i];
 			current->meshObject = objects[3 + i];
-			current->Position[0] = Wander::randomBinomial(WORLD_SIZE);
-			current->Position[1] = Wander::randomBinomial(WORLD_SIZE);
+			current->Position[0] = Wander::randomBinomial(worldSize);
+			current->Position[1] = Wander::randomBinomial(worldSize);
 			current->Orientation = Wander::randomReal(Kore::pi);
 			current->Velocity[0] = Wander::randomBinomial(2.0f);
 			current->Velocity[1] = Wander::randomReal(2.0f);
@@ -332,73 +338,73 @@ namespace {
 
 		float distance = 1.0f;
 
-		// The moon has two options: Wander or Follow the Earth
-		Option* wanderOption = new Option("W");
-		// Wandering should happen if the moon is close enough to the earth
-		DistanceConsideration* closeEnoughConsideration = new DistanceConsideration(earth);
-		ConstCurve* constOneCurve = new ConstCurve();
-		constOneCurve->ConstValue = 1.0f;
+		// The moon has three options: Wander, Seek and Continue Seek. The latter is added to force the moon to commit for a certain amount of time to the seek action
+		// even if the distance to the earth is temporarily larger than the original threshold.
+		Option* wanderOption = new Option("Wander");
+		WanderTask* moonWanderTask = new WanderTask(moon);
+		wanderOption->SetTask(moonWanderTask);
+		reasoner->AddOption(wanderOption);
+
+		Option* seekOption = new Option("Seek"); 
+		FollowTask* moonFollowTask = new FollowTask(moon,earth);
+		seekOption->SetTask(moonFollowTask);
+		reasoner->AddOption(seekOption);
+
+		Option* continueSeekOption = new Option("Continue Seek");
+		continueSeekOption->SetTask(moonFollowTask);
+		reasoner->AddOption(continueSeekOption);
+
+		// Some curves we will need several times
+		ConstCurve* constOneCurve = new ConstCurve(1.0f);
+		IdentityCurve* identityCurve = new IdentityCurve();
+
+		// Wandering should happen if the moon is far enough from the earth
+		// This consideration has an output of 1 whenever this is the case, 0 otherwise.
+		DistanceConsideration* farConsideration = new DistanceConsideration(earth);
 		BooleanCurve* closeEnoughCurve = new BooleanCurve();
 		closeEnoughCurve->comparisonOperator = BooleanCurve::MoreThen;
 		closeEnoughCurve->Threshold = distance;
-		closeEnoughConsideration->SetCurves(constOneCurve, closeEnoughCurve);
-		wanderOption->SetRootConsideration(closeEnoughConsideration);
-		// Create the corresponding WanderTask for the wanderOption
-		WanderTask* moonWanderTask = new WanderTask(moon);
-		wanderOption->SetTask(moonWanderTask);
-		
-		reasoner->AddOption(wanderOption);
-
-		Option* seekOption = new Option("S");
+		farConsideration->SetCurves(constOneCurve, closeEnoughCurve);
+		wanderOption->SetRootConsideration(farConsideration);
 
 		// If the moon is close enough, it should start seeking
-
-		
-		// We use three basic considerations
-		// First one: Drives weight to 1 if the moon is close enough
 		DistanceConsideration* moonCloseToEarth = new DistanceConsideration(earth);
 		moonCloseToEarth->SetOwner(moon);
 		BooleanCurve* closerThanDistanceCurve = new BooleanCurve(BooleanCurve::LessThen, distance);
 		moonCloseToEarth->SetCurves(constOneCurve, closerThanDistanceCurve);
+		seekOption->SetRootConsideration(moonCloseToEarth);
 
-		
-		// Third one: A "time since last execution stopped"
-		lastExecutionConsideration = new LastExecutionStoppedConsideration(seekOption);
-		ExponentialDecayCurve* lastExecutionCurve = new ExponentialDecayCurve(0.8f, 50.0f);
-		lastExecutionConsideration->SetCurves(constOneCurve, lastExecutionCurve);
-
-
+		// Continue seek is a bit more complicated. First, we use the "opt in" pattern: The reasoner should always choose this state right after the seek option has stopped executing
 		LastExecutionStoppedConsideration* optIn = new LastExecutionStoppedConsideration(seekOption);
 		// We use this curve to force this option right after seek has ended
 		ValueInRangeCurve* optInCurve = new ValueInRangeCurve(0.0f, 0.3f, 2.0f);
 		optIn->SetCurves(optInCurve, optInCurve);
 
-		Option* continueSeekOption = new Option("CS");
-		CompositeConsideration* optOutComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Multiply);
+		// While "continue seek" is active, a decay curve should decrease the weight
+		// Also, if "continue seek" is finally stopped, it should not be activated again.
+		// We do this by creating a composite consideration which combines the "is currently executing" consideration with the decay curve. If the option is not executing anymore,
+		// this pulls the weight down to 0
+		LastExecutionStoppedConsideration* lastExecutionStoppedConsideration = new LastExecutionStoppedConsideration(seekOption);
+		ExponentialDecayCurve* lastExecutionCurve = new ExponentialDecayCurve(0.8f, 50.0f);
+		lastExecutionStoppedConsideration->SetCurves(constOneCurve, lastExecutionCurve);
+
 		IsExecutingConsideration* isExecuting = new IsExecutingConsideration(continueSeekOption);
-		isExecuting->SetCurves(constOneCurve, new IdentityCurve());
+		isExecuting->SetCurves(constOneCurve, identityCurve);
+
+		CompositeConsideration* optOutComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Multiply);
 		optOutComposite->AddConsideration(isExecuting);
-		optOutComposite->AddConsideration(lastExecutionConsideration);
+		optOutComposite->AddConsideration(lastExecutionStoppedConsideration);
 
-
-		// We combine the latter two so that the IsExecutingConsideration can pull the other curve to 0 to 
-		// prevent the moon from switching back to following after a while
 		CompositeConsideration* executionHistoryComposite = new CompositeConsideration(CompositeConsideration::CM_Max, CompositeConsideration::CM_Max);
 		executionHistoryComposite->AddConsideration(optIn);
 		executionHistoryComposite->AddConsideration(optOutComposite);
 
-		seekOption->SetRootConsideration(moonCloseToEarth);
-
-		// Create the corresponding FollowTask for the seekOption
-		FollowTask* moonFollowTask = new FollowTask(moon,earth);
-		seekOption->SetTask(moonFollowTask);
-		
-		reasoner->AddOption(seekOption);
-
 		continueSeekOption->SetRootConsideration(executionHistoryComposite);
-		continueSeekOption->SetTask(moonFollowTask);
-		reasoner->AddOption(continueSeekOption);
+	
+		reasoner->SetOwner(moon);
 
+		// We want to see the output of this complex consideration for continue seek in the debug view
+		debuggedConsideration = executionHistoryComposite;
 	}
 
 
@@ -453,12 +459,12 @@ namespace {
 		Graphics::setTextureAddressing(tex, Kore::V, Repeat);
 
 		debugCurve = new DebugCurve();
+		debugCurve->SetPositionAndSize(Kore::vec2(0.0f, height - 100.0f), 100.0f, 100.0f);
 
 		moonSound = new DynamicSound("untitled.wav");
 
 		fontRenderer = new FontRenderer("Roboto", (float) width, (float) height);
-		fontRenderer->SetText("Hello, world!");
-		fontRenderer->SetColor(Kore::Color(Kore::Color::Red));
+		fontRenderer->SetColor(Kore::Color(Kore::Color::White));
 	}
 
 }
@@ -467,7 +473,7 @@ namespace {
 		Kore::System::setName("TUD Game Technology - ");
 		Kore::System::setup();
 		Kore::WindowOptions options;
-		options.title = "Solution 9";
+		options.title = "Solution 13";
 		options.width = width;
 		options.height = height;
 		options.x = 100;

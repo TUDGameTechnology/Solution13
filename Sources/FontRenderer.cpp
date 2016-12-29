@@ -5,7 +5,7 @@ using namespace Kore;
 FontRenderer::FontRenderer(const char* filename, float width, float height)
 	: text(nullptr), screenSpacePosition(Kore::vec2(0.0f, 0.0f))
 {
-	kravur = Kravur::load(filename, FontStyle(), 32.0f);
+	kravur = Kravur::load(filename, FontStyle(), 16.0f);
 	
 	textShaderPainter = new TextShaderPainter();
 	textShaderPainter->setFont(kravur);

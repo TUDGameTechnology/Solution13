@@ -32,6 +32,8 @@ class ConstCurve : public Curve
 {
 public:
 
+	ConstCurve(float constValue) : ConstValue(constValue) {};
+
 	float ConstValue;
 
 	virtual float EvaluateAt(float x) const override;

@@ -81,6 +81,9 @@ public:
 	// Plots one value in the graph
 	void AddValue(float time, float value);
 
+	// Set Position and Size
+	void SetPositionAndSize(Kore::vec2 position, float w, float h);
+
 	void Render(int width, int height);
 
 	static void Init();

@@ -108,7 +108,7 @@ void DebugCurve::CleanupPairs()
 }
 
 DebugCurve::DebugCurve() 
-	: screenSpacePosition(Kore::vec2(256.0f, 256.0f)), width(100.0f), height(100.0f), minValue(0.0f), maxValue(1.0f),
+	: screenSpacePosition(Kore::vec2(0.0f, 0.0f)), width(100.0f), height(100.0f), minValue(0.0f), maxValue(1.0f),
 	visibleDuration(5.0f), numPairs(0), maxNumPairs(100), vertexBuffer(nullptr), indexBuffer(nullptr), buffersNeedUpdate(false)
 {
 	timeValuePairs = new TimeValuePair[maxNumPairs];
@@ -141,6 +141,13 @@ void DebugCurve::AddValue(float time, float value)
 	lastTime = time;
 	
 	buffersNeedUpdate = true;
+}
+
+void DebugCurve::SetPositionAndSize(Kore::vec2 position, float w, float h)
+{
+	screenSpacePosition = position;
+	width = w;
+	height = h;
 }
 
 void DebugCurve::Render(int windowWidth, int windowHeight)

@@ -44,6 +44,16 @@ const char* Reasoner::GetStateString() const
 	return result;
 }
 
+void Reasoner::SetOwner(AICharacter* inOwner)
+{
+	Option** currentOption = options;
+	int i = 0;
+	for (currentOption; *currentOption != nullptr; currentOption++)
+	{
+		(*currentOption)->SetOwner(inOwner);
+	}
+}
+
 void Reasoner::EvaluateOptions()
 {
 	// Clear the two arrays

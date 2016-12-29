@@ -20,6 +20,7 @@ public:
 
 	const char* GetStateString() const;
 
+void SetOwner(AICharacter* inOwner);
 private:
 
 	/** Updates the options and chooses which ones to execute */
