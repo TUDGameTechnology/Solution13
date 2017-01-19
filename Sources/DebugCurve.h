@@ -66,7 +66,7 @@ class DebugCurve
 	// Adds the vertices and indices for the given pair of time/value pairs. Vertices and indices is expected to point to the first free places in the buffer 
 	void AddVertices(const TimeValuePair& left, const TimeValuePair& right, float*& vertices, int*& indices, int& currentIndex);
 
-	static void WriteVertex(float*& vertices, int*& indices, Kore::vec3& v, int& currentIndex);
+	static void WriteVertex(float*& vertices, int*& indices, const Kore::vec3& v, int& currentIndex);
 
 	// Should the y-axis be adjusted automatically?
 	bool autoAdjust;

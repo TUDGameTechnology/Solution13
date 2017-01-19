@@ -1,6 +1,6 @@
 #include "LastExecutionConsideration.h"
 #include "Option.h"
-#include <Kore\System.h>
+#include <Kore/System.h>
 
 
 float LastExecutionConsideration::GetValue() const

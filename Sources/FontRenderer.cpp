@@ -24,7 +24,7 @@ void FontRenderer::SetText(const char* inText)
 	text = inText;
 }
 
-void FontRenderer::SetColor(Kore::Color& inColor)
+void FontRenderer::SetColor(const Kore::Color& inColor)
 {
 	Kore::u8 red = (Kore::u8) inColor.R * 255.0f;
 	Kore::u8 green = (Kore::u8) inColor.G * 255.0f;

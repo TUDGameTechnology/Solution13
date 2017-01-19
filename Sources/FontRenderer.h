@@ -18,7 +18,7 @@ public:
 
 	void SetText(const char* inText);
 
-	void SetColor(Kore::Color& inColor);
+	void SetColor(const Kore::Color& inColor);
 
 	void Render();
 

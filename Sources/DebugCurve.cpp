@@ -78,7 +78,7 @@ void DebugCurve::AddVertices(const TimeValuePair& left, const TimeValuePair& rig
 	WriteVertex(vertices, indices, Kore::vec3(xEnd, 0.0f, 0.0f), currentIndex);
 }
 
-void DebugCurve::WriteVertex(float*& vertices, int*& indices, Kore::vec3& v, int& currentIndex)
+void DebugCurve::WriteVertex(float*& vertices, int*& indices, const Kore::vec3& v, int& currentIndex)
 {
 	vertices[0] = v[0];
 	vertices[1] = v[1];

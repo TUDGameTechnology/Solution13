@@ -2,6 +2,12 @@
 
 #include "pch.h"
 
+float exp(float)
+{
+    // TODO: Call new Kore function
+    return 1.0f;
+}
+
 class DynamicSound {
 public:
 
@@ -58,10 +64,10 @@ public:
 		Kore::s16* destinationRight = (Kore::s16*)sound.right;
 		for (int i = 0; i < sound.size / 2; ++i) {
 			if (i % 2 == 0) { // test for left channel
-				destinationLeft[i / 2] = static_cast<Kore::s16>(source[i] * leftVolume / exp(distance));
+                destinationLeft[i / 2] = static_cast<Kore::s16>(source[i] * leftVolume / exp(distance));
 			}
 			else {
-				destinationRight[i / 2] = static_cast<Kore::s16>(source[i] * rightVolume / exp(distance));
+                destinationRight[i / 2] = static_cast<Kore::s16>(source[i] * rightVolume / exp(distance));
 			}
 		}
 

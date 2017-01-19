@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pch.h"
+#include <Kore/Math/Core.h>
 #include <limits.h>
 #include <float.h>
 
@@ -168,11 +169,11 @@ protected:
 	template<class T>
 	T GetNeutralValue(CombinationMethod method) const;
 
-	template<>
-	int GetNeutralValue<int>(CombinationMethod method) const;
+	//template<>
+	//int GetNeutralValue<int>(CombinationMethod method) const;
 
-	template<>
-	float GetNeutralValue<float>(CombinationMethod method) const;
+	//template<>
+	//float GetNeutralValue<float>(CombinationMethod method) const;
 
 	CombinationMethod RankCombinationMethod;
 	CombinationMethod WeightCombinationMethod;
@@ -201,7 +202,7 @@ T CompositeConsideration::CombineValues(T first, T second, CombinationMethod met
 
 
 template<>
-int CompositeConsideration::GetNeutralValue(CombinationMethod method) const
+inline int CompositeConsideration::GetNeutralValue(CombinationMethod method) const
 {
 	switch (method)
 	{
@@ -221,7 +222,7 @@ int CompositeConsideration::GetNeutralValue(CombinationMethod method) const
 }
 
 template<>
-float CompositeConsideration::GetNeutralValue(CombinationMethod method) const
+inline float CompositeConsideration::GetNeutralValue(CombinationMethod method) const
 {
 	switch (method)
 	{
