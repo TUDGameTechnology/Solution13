@@ -2,12 +2,6 @@
 
 #include "pch.h"
 
-float exp(float)
-{
-    // TODO: Call new Kore function
-    return 1.0f;
-}
-
 class DynamicSound {
 public:
 
