@@ -3,3 +3,4 @@
 /Deployment/*.vert
 Thumbs.db
 /Deployment/run
+.DS_Store
