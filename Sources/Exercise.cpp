@@ -155,18 +155,64 @@ namespace {
 	};
 	
 	/************************************************************************/
-	// Task 1.3: Complete this class so that it correctly returns
+	// Task P13.2a: Complete this class so that it correctly returns
 	// Checks if the moon is closer or further away from the specified distance
 	/************************************************************************/
 	class MoonCondition : public Condition {
 	public:
+		float transitionDistance;
+		
+		bool checkIfCloser;
+		
+		AICharacter* earthCharacter;
+		
+		AICharacter* moonCharacter;
+		
+		bool lastResult;
 		
 		/**
 		 * Performs the test for this condition.
 		 */
 		virtual bool test() {
+			float distance = earthCharacter->Position.distance(moonCharacter->Position);
+			bool result;
 			
-			return false;
+			if (checkIfCloser) {
+				result = (distance < transitionDistance);
+				if (result != lastResult) {
+					if (checkIfCloser) {
+						Kore::log(Kore::Info, "checkIfCloser TRUE:");
+					}
+					else {
+						Kore::log(Kore::Info, "checkIfCloser FALSE:");
+					}
+					if (result) {
+						Kore::log(Kore::Info, "Moon is closer than distance");
+					}
+					else {
+						Kore::log(Kore::Info, "Moon is further than distance");
+					}
+				}
+			}
+			else {
+				result = (distance >= transitionDistance);
+				if (result != lastResult) {
+					if (checkIfCloser) {
+						Kore::log(Kore::Info, "checkIfCloser TRUE:");
+					}
+					else {
+						Kore::log(Kore::Info, "checkIfCloser FALSE:");
+					}
+					if (result) {
+						Kore::log(Kore::Info, "Moon is further than distance");
+					}
+					else {
+						Kore::log(Kore::Info, "Moon is closer than distance");
+					}
+				}
+			}
+			lastResult = result;
+			return result;
 		}
 	};
 	
@@ -360,14 +406,22 @@ namespace {
 		FollowingToWandering->target = wanderState;
 		
 		/************************************************************************/
-		// Task 1.3: After you have completed the MoonCondition object, instantiate it here
+		// Task 13.2b: After you have completed the MoonCondition object, instantiate it here
 		/************************************************************************/
 		
 		MoonCondition* ShouldFollow = new MoonCondition();
 		// This condition should trigger if the moon is closer than 1 unit to the Earth
+		ShouldFollow->checkIfCloser = true;
+		ShouldFollow->earthCharacter = earth;
+		ShouldFollow->moonCharacter = moon;
+		ShouldFollow->transitionDistance = 1.0f;
 		
 		MoonCondition* ShouldWander = new MoonCondition();
 		// This condition should trigger if the moon is further away than 1 unit from the Earth
+		ShouldWander->checkIfCloser = false;
+		ShouldWander->earthCharacter = earth;
+		ShouldWander->moonCharacter = moon;
+		ShouldWander->transitionDistance = 1.0f;
 		
 		
 		

@@ -157,7 +157,7 @@ public:
 	*/
 	virtual void getSteering(SteeringOutput* output) {
 		/************************************************************************/
-		// Task P13.1: Fill out this function
+		// Task P13.1a: Fill out this function
 		// Write the result to output->linear
 		// You can get the AI's position using character->Position
 		/************************************************************************/
@@ -186,7 +186,7 @@ public:
 	*/
 	virtual void getSteering(SteeringOutput* output) {
 		/************************************************************************/
-		// Task P13.1: Fill out this function
+		// Task P13.1b: Fill out this function
 		// Write the result to output->linear
 		// You can get the AI's position using character->Position
 		/************************************************************************/
