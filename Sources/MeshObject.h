@@ -1,20 +1,16 @@
 #pragma once
 
-#include <Kore/pch.h>
-
 #include <Kore/Graphics4/Graphics.h>
 #include "ObjLoader.h"
-
-using namespace Kore;
 
 namespace {
 	class MeshObject {
 	public:
-		MeshObject(const char* meshFile, const char* textureFile, const Graphics4::VertexStructure& structure, float scale = 1.0f) {
+		MeshObject(const char* meshFile, const char* textureFile, const Kore::Graphics4::VertexStructure& structure, float scale = 1.0f) {
 			mesh = loadObj(meshFile);
-			image = new Graphics4::Texture(textureFile, true);
+			image = new Kore::Graphics4::Texture(textureFile, true);
 			
-			vertexBuffer = new Graphics4::VertexBuffer(mesh->numVertices, structure, 0);
+			vertexBuffer = new Kore::Graphics4::VertexBuffer(mesh->numVertices, structure, 0);
 			float* vertices = vertexBuffer->lock();
 			for (int i = 0; i < mesh->numVertices; ++i) {
 				vertices[i * 8 + 0] = mesh->vertices[i * 8 + 0] * scale;
@@ -28,7 +24,7 @@ namespace {
 			}
 			vertexBuffer->unlock();
 			
-			indexBuffer = new Graphics4::IndexBuffer(mesh->numFaces * 3);
+			indexBuffer = new Kore::Graphics4::IndexBuffer(mesh->numFaces * 3);
 			int* indices = indexBuffer->lock();
 			for (int i = 0; i < mesh->numFaces * 3; i++) {
 				indices[i] = mesh->indices[i];
@@ -39,42 +35,42 @@ namespace {
 		}
 		
 		/** Mesh object from already loaded assets */
-		MeshObject(Graphics4::VertexBuffer* inVertexBuffer, Graphics4::IndexBuffer* inIndexBuffer, Graphics4::Texture* inTexture)
+		MeshObject(Kore::Graphics4::VertexBuffer* inVertexBuffer, Kore::Graphics4::IndexBuffer* inIndexBuffer, Kore::Graphics4::Texture* inTexture)
 		: vertexBuffer(inVertexBuffer), indexBuffer(inIndexBuffer), image(inTexture), M(Kore::mat4::Identity()) {
 		}
 		
-		void render(Graphics4::TextureUnit tex) {
-			Graphics4::setTexture(tex, image);
-			Graphics4::setVertexBuffer(*vertexBuffer);
-			Graphics4::setIndexBuffer(*indexBuffer);
-			Graphics4::drawIndexedVertices();
+		void render(Kore::Graphics4::TextureUnit tex) {
+			Kore::Graphics4::setTexture(tex, image);
+			Kore::Graphics4::setVertexBuffer(*vertexBuffer);
+			Kore::Graphics4::setIndexBuffer(*indexBuffer);
+			Kore::Graphics4::drawIndexedVertices();
 		}
 		
-		void setTexture(Graphics4::Texture* tex) {
+		void setTexture(Kore::Graphics4::Texture* tex) {
 			image = tex;
 		}
 		
-		Graphics4::Texture* getTexture() {
+		Kore::Graphics4::Texture* getTexture() {
 			return image;
 		}
 		
-		Graphics4::VertexBuffer* getVertexBuffer()
+		Kore::Graphics4::VertexBuffer* getVertexBuffer()
 		{
 			return vertexBuffer;
 		}
 		
-		Graphics4::IndexBuffer* getIndexBuffer()
+		Kore::Graphics4::IndexBuffer* getIndexBuffer()
 		{
 			return indexBuffer;
 		}
 		
-		mat4 M;
+		Kore::mat4 M;
 		
 	private:
-		Graphics4::VertexBuffer* vertexBuffer;
-		Graphics4::IndexBuffer* indexBuffer;
+		Kore::Graphics4::VertexBuffer* vertexBuffer;
+		Kore::Graphics4::IndexBuffer* indexBuffer;
 		Mesh* mesh;
-		Graphics4::Texture* image;
+		Kore::Graphics4::Texture* image;
 	};
 	
 }

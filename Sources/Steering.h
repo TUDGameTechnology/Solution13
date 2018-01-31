@@ -1,8 +1,5 @@
 #pragma once
 
-#include <Kore/pch.h>
-
-
 #include <Kore/Math/Vector.h>
 #include <Kore/Math/Random.h>
 #include "MeshObject.h"

@@ -1,5 +1,5 @@
+#include "pch.h"
 #include "Steering.h"
-
 
 void AICharacter::integrate(const SteeringOutput& steer,
 	float drag, float duration) {

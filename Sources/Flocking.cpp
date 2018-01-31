@@ -9,6 +9,7 @@
  * implies agreement with all terms and conditions of the accompanying
  * software licence.
  */
+#include "pch.h"
 #include "Flocking.h"
 #include <cstring>
 

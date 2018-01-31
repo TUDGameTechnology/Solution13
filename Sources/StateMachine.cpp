@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "StateMachine.h"
 
 StateMachineState * FixedTargetTransitionMixin::getTargetState()
